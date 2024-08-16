@@ -1,3 +1,6 @@
+# Internal CI files
+.gitlab-ci.yml
+
 # Prerequisites
 *.d
 
