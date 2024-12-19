@@ -38,7 +38,8 @@ Checks: >
   -performance-move-const-arg,
   -modernize-avoid-bind,
   -readability-identifier-length,
-  -performance-enum-size
+  -performance-enum-size,
+  -clang-analyzer-optin.core.EnumCastOutOfRange
 
 WarningsAsErrors: '*'
 

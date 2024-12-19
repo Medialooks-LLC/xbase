@@ -1,6 +1,17 @@
 #pragma once
 
+#include "xbase/numbers.hpp"
+#include "xbase/shared_from_this.hpp"
+#include "xbase/variant_utils.hpp"
+#include "xbase/xany.hpp"
+#include "xbase/xblob.hpp"
+#include "xbase/xclock.h"
 #include "xbase/xdata.h"
+#include "xbase/xenum.hpp"
 #include "xbase/xobject.h"
-#include "xbase/xpointers.h"
+#include "xbase/xpointers.hpp"
+#include "xbase/xresult.hpp"
+#include "xbase/xscheduler.h"
+#include "xbase/xtime.h"
 #include "xbase/xuid.h"
+#include "xbase/xworker.h"

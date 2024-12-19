@@ -1,6 +1,6 @@
 #pragma once
 
-#include "xpointers.h"
+#include "xpointers.hpp"
 #include "xuid.h"
 
 #include <any>
@@ -25,13 +25,13 @@ public:
      * the object.
      * @return The object UID.
      */
-    virtual uint64_t ObjectUid() const                       = 0;
+    virtual uint64_t ObjectUid() const = 0;
     /**
      * @brief Method for querying a pointer to an object of a given type.
      * @param _type_query The UID of the target object type.
      * @return A smart pointer to the queried object or null if not found.
      */
-    virtual std::any QueryPtr(xbase::Uid _type_query)        = 0;
+    virtual std::any QueryPtr(xbase::Uid _type_query) = 0;
     /**
      * @brief Method for querying a pointer to a constant object of a given type.
      * @param _type_query The UID of the target object type.

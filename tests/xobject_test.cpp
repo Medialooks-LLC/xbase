@@ -5,16 +5,17 @@
 using namespace xsdk;
 
 // NOLINTBEGIN(*)
-class IObjectTest final: public IObject, public std::enable_shared_from_this<IObjectTest> {
+class ObjectTest final: public IObject, public std::enable_shared_from_this<ObjectTest> {
 
     const uint64_t uid_;
     std::string    name_;
 
-    IObjectTest(std::string_view _name) : uid_(xbase::NextUid()), name_(_name) {}
+    explicit ObjectTest(std::string_view _name) : uid_(xbase::NextUid()), name_(_name) {}
+
 public:
-    static std::shared_ptr<IObjectTest> Create(std::string_view _name = {})
+    static std::shared_ptr<ObjectTest> Create(std::string_view _name = {})
     {
-        return std::shared_ptr<IObjectTest> {new IObjectTest(_name)};
+        return std::shared_ptr<ObjectTest> {new ObjectTest(_name)};
     }
 
     uint64_t ObjectUid() const override { return uid_; };
@@ -22,13 +23,13 @@ public:
     std::any QueryPtr(xbase::Uid _type_query) override
     {
         try {
-            if (_type_query == xbase::TypeUid<IObjectTest>())
-                    return std::static_pointer_cast<IObjectTest>(shared_from_this());
+            if (_type_query == xbase::TypeUid<ObjectTest>())
+                return std::static_pointer_cast<ObjectTest>(shared_from_this());
 
             if (_type_query == xbase::TypeUid<IObject>())
                 return std::static_pointer_cast<IObject>(shared_from_this());
         }
-        catch (std::bad_weak_ptr const&) { //If we don't have any shared pointers before call this method
+        catch (std::bad_weak_ptr const&) { // If we don't have any shared pointers before call this method
             return {};
         }
         return {};
@@ -36,12 +37,11 @@ public:
     std::any QueryPtrC(xbase::Uid _type_query) const override
     {
         try {
-            if (_type_query == xbase::TypeUid<const IObjectTest>())
-                    return std::static_pointer_cast<const IObjectTest>(shared_from_this());
+            if (_type_query == xbase::TypeUid<const ObjectTest>())
+                return std::static_pointer_cast<const ObjectTest>(shared_from_this());
 
             if (_type_query == xbase::TypeUid<const IObject>())
                 return std::static_pointer_cast<const IObject>(shared_from_this());
-
         }
         catch (std::bad_weak_ptr const&) {
             return {};
@@ -57,7 +57,7 @@ public:
 TEST(xobject_test, query_ptr_invalid_type)
 {
 
-    auto io_test = IObjectTest::Create();
+    auto io_test = ObjectTest::Create();
 
     auto null_any_ptr = io_test->QueryPtr(xbase::TypeUid<int>());
     EXPECT_FALSE(null_any_ptr.has_value());
@@ -66,7 +66,7 @@ TEST(xobject_test, query_ptr_invalid_type)
 TEST(xobject_test, query_ptr_c_invalid_type)
 {
 
-    auto io_test = IObjectTest::Create();
+    auto io_test = ObjectTest::Create();
 
     auto null_any_ptr = io_test->QueryPtrC(xbase::TypeUid<int>());
     EXPECT_FALSE(null_any_ptr.has_value());
@@ -74,31 +74,31 @@ TEST(xobject_test, query_ptr_c_invalid_type)
 
 TEST(xobject_test, query_ptr_direct_call)
 {
-    auto io_test = IObjectTest::Create();
+    auto io_test = ObjectTest::Create();
 
-    auto io_test_any_ptr = io_test->QueryPtr(xbase::TypeUid<IObjectTest>());
+    auto io_test_any_ptr = io_test->QueryPtr(xbase::TypeUid<ObjectTest>());
     EXPECT_TRUE(io_test_any_ptr.has_value());
 }
 
 TEST(xobject_test, query_ptr_c_direct_call)
 {
-    auto io_test = IObjectTest::Create();
+    auto io_test = ObjectTest::Create();
 
-    auto io_test_any_ptr = io_test->QueryPtrC(xbase::TypeUid<const IObjectTest>());
+    auto io_test_any_ptr = io_test->QueryPtrC(xbase::TypeUid<const ObjectTest>());
     EXPECT_TRUE(io_test_any_ptr.has_value());
 }
 
 TEST(xobject_test, query_ptr_c_direct_call_on_non_const)
 {
-    auto io_test = IObjectTest::Create();
+    auto io_test = ObjectTest::Create();
 
-    auto io_test_any_ptr = io_test->QueryPtrC(xbase::TypeUid<const IObjectTest>());
+    auto io_test_any_ptr = io_test->QueryPtrC(xbase::TypeUid<const ObjectTest>());
     EXPECT_TRUE(io_test_any_ptr.has_value());
 }
 
 TEST(xobject_test, ptr_query)
 {
-    auto io_test = IObjectTest::Create();
+    auto io_test = ObjectTest::Create();
     io_test->NameSet("some name");
 
     auto obj_qp_sp = xobject::PtrQuery<IObject>(io_test.get());
@@ -106,7 +106,7 @@ TEST(xobject_test, ptr_query)
     auto obj_sp = std::static_pointer_cast<IObject>(io_test);
     EXPECT_EQ(obj_qp_sp, obj_sp);
 
-    auto obj_sp2 = xobject::PtrQuery<IObjectTest>(obj_sp.get());
+    auto obj_sp2 = xobject::PtrQuery<ObjectTest>(obj_sp.get());
     EXPECT_EQ("some name", obj_sp2->NameGet());
     obj_sp2->NameSet("other name");
     EXPECT_EQ("other name", obj_sp2->NameGet());
@@ -115,16 +115,16 @@ TEST(xobject_test, ptr_query)
 
 TEST(xobject_test, ptr_query_const_with_non_const)
 {
-    auto io_test = IObjectTest::Create();
+    auto io_test = ObjectTest::Create();
     io_test->NameSet("some name");
 
     const IObject* const_p   = io_test.get();
-    auto obj_qp_sp = xobject::PtrQuery<const IObject>(const_p);
+    auto           obj_qp_sp = xobject::PtrQuery<const IObject>(const_p);
     EXPECT_TRUE(obj_qp_sp);
     auto obj_sp = std::static_pointer_cast<const IObject>(io_test);
     EXPECT_EQ(obj_qp_sp, obj_sp);
 
-    auto obj_sp2 = xobject::PtrQuery<const IObjectTest>(obj_sp.get());
+    auto obj_sp2 = xobject::PtrQuery<const ObjectTest>(obj_sp.get());
     EXPECT_EQ("some name", obj_sp2->NameGet());
     io_test->NameSet("other name");
     EXPECT_EQ("other name", obj_sp2->NameGet());
@@ -133,15 +133,31 @@ TEST(xobject_test, ptr_query_const_with_non_const)
 TEST(xobject_test, ptr_query_const)
 {
 
-    std::shared_ptr<const IObjectTest> io_test = IObjectTest::Create("some name");
+    std::shared_ptr<const ObjectTest> io_test = ObjectTest::Create("some name");
 
     auto obj_qp_sp = xobject::PtrQuery<const IObject>(io_test.get());
     EXPECT_TRUE(obj_qp_sp);
     auto obj_sp = std::static_pointer_cast<const IObject>(io_test);
     EXPECT_EQ(obj_qp_sp, obj_sp);
 
-    auto obj_sp2 = xobject::PtrQuery<const IObjectTest>(obj_sp.get());
+    auto obj_sp2 = xobject::PtrQuery<const ObjectTest>(obj_sp.get());
     EXPECT_EQ("some name", obj_sp2->NameGet());
+}
+
+TEST(xobject_test, ptr_query_from_null)
+{
+    std::shared_ptr<ObjectTest> io_test;
+
+    auto obj_qp_sp = xobject::PtrQuery<IObject>(io_test.get());
+    EXPECT_FALSE(obj_qp_sp);
+}
+
+TEST(xobject_test, ptr_query_const_from_null)
+{
+    std::shared_ptr<const ObjectTest> io_test;
+
+    auto obj_qp_sp = xobject::PtrQuery<const IObject>(io_test.get());
+    EXPECT_FALSE(obj_qp_sp);
 }
 
 // NOLINTEND(*)
