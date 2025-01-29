@@ -5,12 +5,12 @@ project(xbase_tests)
 FILE(GLOB FILES
     ../../include/*.h
     *.cpp
-	*.hpp
-	*.h
+    *.hpp
+    *.h
 )
 
 include_directories(
-        ../../include
+    ../../include
 )
 
 if(MSVC)

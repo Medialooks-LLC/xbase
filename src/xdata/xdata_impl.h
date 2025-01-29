@@ -27,15 +27,15 @@ public:
     //-------------------------------------------------------------------------------
     virtual IData::UPtr Clone(const std::set<uint64_t>& _cloned_types, CloneSetType _set_type) const override;
     virtual size_t      CopyTo(IData*                    _dest,
-                               bool                      _overwrite,
+                               const bool                _overwrite,
                                const std::set<uint64_t>& _copy_types = {},
-                               CloneSetType              _set_type   = CloneSetType::Exclude) const override;
+                               const CloneSetType        _set_type   = CloneSetType::Exclude) const override;
 
-    virtual size_t DataSet(uint64_t _data_uid, std::any&& _face, std::any&& _holder, size_t _idx) override;
-    virtual size_t DataCount(uint64_t _data_uid) const override;
-    virtual std::pair<std::any, std::any> DataGet(uint64_t _data_uid, size_t _idx = 0) const override;
-    virtual std::pair<std::any, std::any> DataRemove(uint64_t _data_uid, size_t _idx = 0) override;
-    virtual bool                          DataReset(uint64_t _data_uid) override;
+    virtual size_t DataSet(const uint64_t _data_uid, std::any&& _face, std::any&& _holder, const size_t _idx) override;
+    virtual size_t DataCount(const uint64_t _data_uid) const override;
+    virtual std::pair<std::any, std::any> DataGet(const uint64_t _data_uid, const size_t _idx = 0) const override;
+    virtual std::pair<std::any, std::any> DataRemove(const uint64_t _data_uid, const size_t _idx = 0) override;
+    virtual bool                          DataReset(const uint64_t _data_uid) override;
     virtual size_t                        TypesCount() const override { return data_map_.size(); };
 
 private:

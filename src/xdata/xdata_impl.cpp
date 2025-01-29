@@ -15,7 +15,7 @@ namespace impl {
     size_t XDataImpl::CopyTo(IData*                    _dest,
                              bool                      _overwrite,
                              const std::set<uint64_t>& _copy_types,
-                             IData::CloneSetType       _set_type) const
+                             const IData::CloneSetType _set_type) const
     {
         if (!_dest)
             return 0;
@@ -59,7 +59,7 @@ namespace impl {
         return copied;
     }
 
-    IData::UPtr XDataImpl::Clone(const std::set<uint64_t>& _cloned_types, CloneSetType _set_type) const
+    IData::UPtr XDataImpl::Clone(const std::set<uint64_t>& _cloned_types, const CloneSetType _set_type) const
     {
         // std::shared_lock lck(map_rw_);
 
@@ -90,7 +90,7 @@ namespace impl {
         return IData::UPtr {new XDataImpl(std::move(cloned_map))};
     }
 
-    size_t XDataImpl::DataSet(uint64_t _data_uid, std::any&& _face, std::any&& _holder, size_t _idx)
+    size_t XDataImpl::DataSet(const uint64_t _data_uid, std::any&& _face, std::any&& _holder, const size_t _idx)
     {
         // std::unique_lock lck(map_rw_);
 
@@ -107,7 +107,7 @@ namespace impl {
         return _idx;
     }
 
-    size_t XDataImpl::DataCount(uint64_t _data_uid) const
+    size_t XDataImpl::DataCount(const uint64_t _data_uid) const
     {
         // std::shared_lock lck(map_rw_);
 
@@ -115,7 +115,7 @@ namespace impl {
         return it == data_map_.end() ? 0 : it->second.size();
     }
 
-    std::pair<std::any, std::any> XDataImpl::DataGet(uint64_t _data_uid, size_t _idx) const
+    std::pair<std::any, std::any> XDataImpl::DataGet(const uint64_t _data_uid, const size_t _idx) const
     {
         // std::shared_lock lck(map_rw_);
 
@@ -126,7 +126,7 @@ namespace impl {
         return it->second[_idx];
     }
 
-    std::pair<std::any, std::any> XDataImpl::DataRemove(uint64_t _data_uid, size_t _idx)
+    std::pair<std::any, std::any> XDataImpl::DataRemove(const uint64_t _data_uid, const size_t _idx)
     {
         // std::unique_lock lck(map_rw_);
 
@@ -143,7 +143,7 @@ namespace impl {
         return removed;
     }
 
-    bool XDataImpl::DataReset(uint64_t _data_uid)
+    bool XDataImpl::DataReset(const uint64_t _data_uid)
     {
         // std::unique_lock lck(map_rw_);
 

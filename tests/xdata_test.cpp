@@ -357,6 +357,153 @@ TEST(xdata_tests, data_clone_include)
     EXPECT_EQ(xdata::Count<double>(clone_sp.get()), 1);
 }
 
+TEST(xdata_tests, interfaces_test)
+{
+    struct MyTestStruct {
+        std::string name;
+        double      val;
+    };
+
+    struct MyTestStruct2: public MyTestStruct {};
+    struct MyTestStruct3: public MyTestStruct {};
+    struct MyTestStruct4: public MyTestStruct {};
+
+    IData::UPtr data_p;
+    {
+        auto                       string_sp1 = std::make_shared<std::string>("str_1");
+        auto                       string_sp2 = std::make_shared<std::string>("str_2");
+        std::weak_ptr<std::string> string_wp1 = string_sp1;
+        std::weak_ptr<std::string> string_wp2 = string_sp2;
+
+        auto struct_sp  = std::make_shared<MyTestStruct>(MyTestStruct {"MyTestStruct", 17.0});
+        auto struct2_sp = std::make_shared<MyTestStruct2>(MyTestStruct2 {"MyTestStruct2", 11.0});
+        auto struct3_sp = std::make_shared<MyTestStruct3>(MyTestStruct3 {"MyTestStruct3", 23.0});
+        std::weak_ptr<MyTestStruct2> struct2_wp = struct2_sp;
+        std::weak_ptr<MyTestStruct3> struct3_wp = struct3_sp;
+
+        data_p = xdata::CreateInterfacesCollection(string_sp1,
+                                                   string_wp1,
+                                                   string_wp2,
+                                                   struct_sp,
+                                                   struct_sp,
+                                                   struct2_wp,
+                                                   struct3_sp,
+                                                   struct3_wp);
+    }
+
+    ASSERT_TRUE(data_p);
+    EXPECT_EQ(xdata::Count<std::string>(data_p.get()), 3);
+    EXPECT_EQ(xdata::Count<MyTestStruct>(data_p.get()), 2);
+    EXPECT_EQ(xdata::Count<MyTestStruct2>(data_p.get()), 1);
+    EXPECT_EQ(xdata::Count<MyTestStruct3>(data_p.get()), 2);
+    EXPECT_EQ(xdata::Count<MyTestStruct4>(data_p.get()), 0);
+
+    auto shared_str_vec = xdata::GetSharedVec<std::string>(data_p.get());
+    ASSERT_EQ(shared_str_vec.size(), 2);
+    ASSERT_TRUE(shared_str_vec[0]);
+    ASSERT_TRUE(shared_str_vec[1]);
+    EXPECT_EQ(*shared_str_vec[0], "str_1");
+    EXPECT_EQ(*shared_str_vec[1], "str_1");
+
+    auto struct_sp = xdata::GetShared<MyTestStruct>(data_p.get());
+    ASSERT_TRUE(struct_sp);
+    EXPECT_EQ(struct_sp->name, "MyTestStruct");
+    auto struct2_sp = xdata::GetShared<MyTestStruct2>(data_p.get());
+    ASSERT_FALSE(struct2_sp);
+    auto struct3_sp = xdata::GetShared<MyTestStruct3>(data_p.get());
+    ASSERT_TRUE(struct3_sp);
+    EXPECT_EQ(struct3_sp->name, "MyTestStruct3");
+
+    auto struct4_sp = xdata::GetShared<MyTestStruct4>(data_p.get());
+    EXPECT_FALSE(struct4_sp);
+
+    auto shared_vec = xdata::GetSharedVec<MyTestStruct>(data_p.get());
+    ASSERT_EQ(shared_vec.size(), 2);
+    ASSERT_TRUE(shared_vec[0]);
+    ASSERT_TRUE(shared_vec[1]);
+    EXPECT_EQ(shared_vec[0]->name, "MyTestStruct");
+    EXPECT_EQ(shared_vec[1]->name, "MyTestStruct");
+    
+    auto empty_vec = xdata::GetSharedVec<MyTestStruct4>(data_p.get());
+    EXPECT_TRUE(empty_vec.empty());
+}
+
+TEST(xdata_tests, get_vector_test)
+{
+    auto data_p = xdata::Create();
+
+    xdata::Set(data_p.get(), -1, std::string("123"));
+    xdata::Set(data_p.get(), -1, std::string("456"));
+    xdata::Set(data_p.get(), -1, std::string("789"));
+
+    EXPECT_EQ(xdata::Count<std::string>(data_p.get()), 3);
+
+    auto str_vec = xdata::GetCopyVec<std::string>(data_p.get());
+    ASSERT_EQ(str_vec.size(), 3);
+    EXPECT_EQ(str_vec[0], "123");
+    EXPECT_EQ(str_vec[1], "456");
+    EXPECT_EQ(str_vec[2], "789");
+
+    data_p.reset();
+    auto empty_vec = xdata::GetCopyVec<std::string>(data_p.get());
+    EXPECT_TRUE(empty_vec.empty());
+}
+
+TEST(xdata_tests, get_wrong_index)
+{
+    auto data_p = xdata::Create();
+
+    xdata::Set(data_p.get(), -1, std::string("123"));
+    xdata::Set(data_p.get(), -1, std::string("456"));
+    xdata::Set(data_p.get(), -1, std::string("789"));
+
+    auto wrong_1_sp = xdata::Get<std::string>(data_p.get(), 100);
+    EXPECT_FALSE(wrong_1_sp);
+    auto wrong_2_sp = xdata::Get<std::string>(data_p.get(), xbase::npos);
+    EXPECT_FALSE(wrong_2_sp);
+
+    auto wrong_1 = xdata::GetCopy<std::string>(data_p.get(), 100);
+    EXPECT_TRUE(wrong_1.empty());
+    auto wrong_2 = xdata::GetCopy<std::string>(data_p.get(), xbase::npos);
+    EXPECT_TRUE(wrong_2.empty());
+
+    {
+        struct WrongHolder {
+            size_t fake;
+        };
+
+        auto [wrong_1_sp, holder_1_sp] = xdata::GetWithHolder<std::string, WrongHolder>(data_p.get(), 100);
+        EXPECT_FALSE(wrong_1_sp);
+        EXPECT_FALSE(holder_1_sp);
+        auto [wrong_2_sp, holder_2_sp] = xdata::GetWithHolder<std::string, WrongHolder>(data_p.get(), xbase::npos);
+        EXPECT_FALSE(wrong_2_sp);
+        EXPECT_FALSE(holder_2_sp);
+    }
+}
+
+
+TEST(xdata_tests, interfaces_test_fails)
+{
+    struct MyTestStruct {
+        std::string name;
+        double      val;
+    };
+
+    struct MyTestStruct2: public MyTestStruct {};
+    struct MyTestStruct3: public MyTestStruct {};
+
+    IData::UPtr data_p;
+    EXPECT_EQ(xdata::Count<std::string>(data_p.get()), 0);
+    EXPECT_EQ(xdata::Count<MyTestStruct>(data_p.get()), 0);
+    EXPECT_EQ(xdata::Count<MyTestStruct2>(data_p.get()), 0);
+    EXPECT_EQ(xdata::Count<MyTestStruct3>(data_p.get()), 0);
+
+    auto shared_str_vec = xdata::GetSharedVec<std::string>(data_p.get());
+    ASSERT_EQ(shared_str_vec.size(), 0);
+
+    auto struct_sp = xdata::GetShared<MyTestStruct>(data_p.get());
+    EXPECT_FALSE(struct_sp);
+}
 // TEST(xdata_tests, data_set_holder)
 //{
 //     auto data_sp = std::make_shared<XDataImpl>();

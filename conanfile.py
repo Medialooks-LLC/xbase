@@ -4,7 +4,7 @@ from conan.tools.files import copy
 from conan.errors import ConanInvalidConfiguration
 import os
 
-required_conan_version = ">=2.0.14"
+required_conan_version = ">=2.8.1"
 
 
 class xSDK(ConanFile):

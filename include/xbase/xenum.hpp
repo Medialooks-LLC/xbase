@@ -286,17 +286,23 @@ namespace xenum {
     }
 
     template <class TEnum>
-    inline TEnum FromString(const std::string& _str_value, const TEnum& _default)
+    inline std::optional<TEnum> FromString(const std::string& _str_value)
     {
         if (XEnumReflector::IsClosed<TEnum>())
-            return _default;
+            return std::nullopt;
 
         const auto& reflector = XEnumReflector::For<TEnum>();
         auto        enum_val  = reflector.Find(_str_value);
         if (enum_val.IsValid())
             return static_cast<TEnum>(enum_val.Value());
 
-        return _default;
+        return std::nullopt;
+    }
+
+    template <class TEnum>
+    inline TEnum FromString(const std::string& _str_value, const TEnum& _default)
+    {
+        return FromString<TEnum>(_str_value).value_or(_default);
     }
 
 } // namespace xenum

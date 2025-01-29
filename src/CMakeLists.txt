@@ -11,17 +11,23 @@ file(GLOB_RECURSE FILES
 include_directories(
         ../include
 )
-
+if(DYNAMIC_BUILD)
+add_library(${PROJECT_NAME}
+    SHARED
+    ${FILES}
+)
+else()
 add_library(${PROJECT_NAME}
     STATIC
     ${FILES}
 )
-
+endif()
 if(WIN32)
     target_link_libraries(${PROJECT_NAME}
                           PUBLIC
                           IPHLPAPI
     )
+    set_target_properties(xbase PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 else()
     target_link_libraries(${PROJECT_NAME}
                           PUBLIC
