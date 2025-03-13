@@ -311,6 +311,10 @@ TEST(xworker_tests, worker_task_cancel_valid_uid)
 
     const int32_t     delay_msec   = 500;
     const std::string expected_res = "check_string";
+    xworker::ExecuteAsync<std::string>(worker_p.get(), [&]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(delay_msec));
+        return expected_res;
+    });
     xworker::ExecuteAsync<std::string>(
         worker_p.get(),
         [&]() {
@@ -318,8 +322,7 @@ TEST(xworker_tests, worker_task_cancel_valid_uid)
             return expected_res;
         },
         123123);
-
-    auto res = worker_p->TaskCancel(123123);
+    auto res = worker_p->TaskCancel(123123); // it in queue yet and we can cancel it
     EXPECT_EQ(res.first, xbase::IWorker::CancelRes::kCanceled) << "Cancel valid task return strange res";
 }
 
@@ -419,6 +422,56 @@ TEST(xworker_tests, pool_tasks_cancel)
     }
 
     // Future is set before number of tasks decreased
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    std::tie(exec, total) = pool_p->TasksCount();
+    EXPECT_EQ(exec, 0) << "Wrong executing task counter (after cancel)";
+    EXPECT_EQ(total, 0) << "Wrong total task counter (after cancel)";
+
+    // Check for no cicles after stop
+    for (size_t z = 0; z < task_uids.size(); ++z) {
+        EXPECT_EQ(counters[z].load(), check_counters[z]) << "Some cicles after cancel";
+    }
+}
+
+TEST(xworker_tests, pool_tasks_cancel_all)
+{
+    std::array<std::atomic_uint64_t, 16> counters = {};
+    std::srand((uint32_t)std::time(nullptr));
+
+    auto pool_task_pf = [&](const size_t idx) {
+        [[maybe_unused]] auto v = counters[idx].fetch_add(1);
+        if (idx % 2) {
+            auto sleep_msec = std::rand() % 500;
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleep_msec));
+        }
+        return xbase::IWorker::RepeatType::kRepeatUntilCancel;
+    };
+
+    auto pool_p = xworker::CreatePool(0, counters.size(), 300);
+
+    std::vector<xbase::IWorker::TaskUid> task_uids;
+    for (size_t z = 0; z < counters.size(); ++z) {
+        auto task_uid = pool_p->TaskPut([=]() { return pool_task_pf(z); });
+        ASSERT_TRUE(task_uid != xbase::kInvalidUid) << "pool_p->TaskPut FAILED";
+
+        if (task_uid != xbase::kInvalidUid)
+            task_uids.push_back(task_uid);
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    auto [exec, total] = pool_p->TasksCount();
+    EXPECT_EQ(exec, counters.size()) << "Wrong executing task counter";
+    EXPECT_EQ(total, 0) << "Wrong await task counter";
+
+    pool_p->TaskCancelAll();
+
+    std::array<std::uint64_t, 16> check_counters = {};
+    for (size_t z = 0; z < task_uids.size(); ++z) {
+        check_counters[z] = counters[z].load();
+    }
+
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     std::tie(exec, total) = pool_p->TasksCount();

@@ -125,30 +125,31 @@ public:
             description_p_ = std::make_unique<std::string>(*_copy.description_p_);
         else
             description_p_.reset();
+        return *this;
     }
 
     /**
      * @brief Checks if the result is in the empty state.
      * @return true if the result is empty, false otherwise.
      */
-    bool Empty() const { return std::get_if<std::monostate>(this) ? true : false; }
+    [[nodiscard]] bool Empty() const { return std::get_if<std::monostate>(this) ? true : false; }
     /**
      * @brief Checks if the result contains a result value.
      * @return true if the result contains a result value, false otherwise.
      */
-    bool HasResult() const { return std::get_if<TResult>(this) ? true : false; }
+    [[nodiscard]] bool HasResult() const { return std::get_if<TResult>(this) ? true : false; }
     /**
      * @brief Checks if the result contains an error.
      * @return true if the result contains an error, false otherwise.
      */
-    bool HasError() const { return std::get_if<std::error_code>(this) ? true : false; }
+    [[nodiscard]] bool HasError() const { return std::get_if<std::error_code>(this) ? true : false; }
 
     /**
      * @brief Returns the error if the result contains an error, or the provided default error if it does not.
      * @param _code_if_noerror The default error to return if the result is empty or contains a result.
      * @return The error code or the provided default error.
      */
-    std::error_code Error(const std::error_code _code_if_noerror = {}) const
+    [[nodiscard]] std::error_code Error(const std::error_code _code_if_noerror = {}) const
     {
         const auto* err_p = std::get_if<std::error_code>(this);
         return (err_p && *err_p) ? *err_p : _code_if_noerror;
@@ -158,14 +159,14 @@ public:
      * @brief Returns the description of the error if the result contains an error, or an empty string if it does not.
      * @return The description of the error or an empty string.
      */
-    std::string_view Description() const { return description_p_ ? *description_p_ : std::string_view(); }
+    [[nodiscard]] std::string_view Description() const { return description_p_ ? *description_p_ : std::string_view(); }
 
     /**
      * @brief Returns the result if the result contains a result value, or the provided default result if it does not.
      * @param _for_error The default result to return if the result is empty or contains an error.
      * @return The result or the provided default result.
      */
-    const TResult& Result(const TResult& _for_error = {}) const
+    [[nodiscard]] const TResult& Result(const TResult& _for_error = {}) const
     {
         const auto* res_p = std::get_if<TResult>(this);
         return res_p ? *res_p : _for_error;
@@ -209,10 +210,9 @@ public:
     }
 
     template <typename T = TResult, std::enable_if_t<is_smart_ptr<T>::value, bool> = true>
-    typename T::element_type* GetPtr()
+    [[nodiscard]] typename T::element_type* GetPtr()
     {
         auto* res_p = std::get_if<T>(this);
-        assert(res_p);
         if (res_p)
             return res_p->get();
 

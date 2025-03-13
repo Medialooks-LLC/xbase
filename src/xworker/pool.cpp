@@ -53,7 +53,7 @@ namespace xbase::impl {
           fast_on_idle_(_fast_on_idle),
           tasks_queue_(CreateTaskQueue())
     {
-        // Add minimum threads w/o timeout -> always running - no expiration
+        // Add minimum workers w/o timeout -> always running - no expiration
         for (size_t z = 0; z < _min_workers; ++z)
             AddWorker_(std::nullopt);
     }
@@ -151,6 +151,25 @@ namespace xbase::impl {
         return {CancelRes::kNotFound, std::future<IWorker::FinishType> {}};
     }
 
+    size_t PoolWorkersImpl::TaskCancelAll()
+    {
+        std::unique_lock lck(rw_);
+
+        size_t canceled = tasks_queue_->EraseAll(FinishType::kCanceled);
+
+        auto workers = std::exchange(workers_, std::vector<IWorker::UPtr>());
+        tasks_prefer_workers_.clear();
+        lck.unlock();
+
+        for (auto& worker_p : workers)
+            canceled += worker_p->TaskCancelAll();
+
+        for (size_t z = 0; z < min_workers_; ++z)
+            AddWorker_(std::nullopt);
+
+        return canceled;
+    }
+
     bool PoolWorkersImpl::Join(const bool _cancel_tasks)
     {
         std::unique_lock lck(rw_);
@@ -158,10 +177,11 @@ namespace xbase::impl {
         if (_cancel_tasks)
             tasks_queue_->EraseAll(FinishType::kCanceled);
 
-        auto threads = std::exchange(workers_, std::vector<IWorker::UPtr>());
+        auto workers = std::exchange(workers_, std::vector<IWorker::UPtr>());
+        tasks_prefer_workers_.clear();
         lck.unlock();
 
-        for (auto& worker_p : threads)
+        for (auto& worker_p : workers)
             worker_p->Join(_cancel_tasks);
 
         return true;

@@ -89,15 +89,19 @@ public:
      * @brief Copy constructor from const HolderP.
      * This constructor copies the data and the holder from a const HolderP.
      */
-    HolderP(const HolderP&) = default;
+    HolderP(const HolderP& _copy) : holder_(_copy.holder_)
+    {
+        if (_copy.DataPtr())
+            data_p_ = std::make_unique<TData>(_copy.Data());
+    }
     /**
      * @brief Constructor from std::pair.
      * This constructor initializes the data and the holder with the data and
      * the holder from a std::pair.
      * @param _data_n_holder A std::pair that contains the data and the holder.
      */
-    HolderP(std::pair<TData, std::any>&& _data_n_holder)
-        : data_(std::move(_data_n_holder.first)),
+    HolderP(std::pair<std::unique_ptr<TData>, std::any>&& _data_n_holder)
+        : data_p_(std::move(_data_n_holder.first)),
           holder_(std::move(_data_n_holder.second))
     {
     }
@@ -108,7 +112,11 @@ public:
      * @param _data The data to be held by the wrapper.
      * @param _data_holder The holder of the data.
      */
-    HolderP(TData&& _data, std::any&& _data_holder) : data_(std::move(_data)), holder_(std::move(_data_holder)) {}
+    HolderP(TData&& _data, std::any&& _data_holder)
+        : data_p_(std::make_unique<TData>(std::move(_data))),
+          holder_(std::move(_data_holder))
+    {
+    }
     /**
      * @brief Constructor from data and holder.
      * This constructor initializes the data and the holder with the provided
@@ -116,35 +124,57 @@ public:
      * @param _data The data to be held by the wrapper.
      * @param _data_holder The holder of the data.
      */
-    HolderP(const TData& _data, std::any&& _data_holder) : data_(_data), holder_(std::move(_data_holder)) {}
+    HolderP(const TData& _data, std::any&& _data_holder)
+        : data_p_(std::make_unique<TData>(_data)),
+          holder_(std::move(_data_holder))
+    {
+    }
 
-    HolderP& operator=(HolderP&&)      = default;
-    HolderP& operator=(const HolderP&) = default;
-
+    HolderP& operator=(HolderP&&) = default;
+    HolderP& operator=(const HolderP& _copy)
+    {
+        if (_copy.DataPtr())
+            data_p_ = std::make_unique<TData>(_copy.Data());
+        holder_ = _copy.holder_;
+        return *this;
+    }
+    /**
+     * @brief Check is holder an empty
+     */
+    bool IsEmpty() const { return !data_p_; }
     /**
      * @brief Const accessor for the data.
      * @return A const reference to the data.
      */
-    const TData& Data() const { return data_; }
+    const TData& Data() const
+    {
+        assert(data_p_);
+        return *data_p_;
+    }
+    /**
+     * @brief Const accessor for the data pointer
+     * @return A const pointer to the data.
+     */
+    const TData* DataPtr() const { return data_p_.get(); }
 
     /**
      * @brief Implicit conversion to const TData.
      * This implicit conversion operator converts the wrapper to a const TData.
      * @return A const TData.
      */
-    operator const TData&() const { return data_; }
+    operator const TData&() const { return Data(); }
     /**
      * @brief Pointer to the data.
      * @return A pointer to the data.
      */
-    const TData* operator->() const { return &data_; }
+    const TData* operator->() const { return data_p_.get(); }
     /**
      * @brief Equality comparison with a TData.
      * This operator compares the data of the wrapper with a TData.
      * @param val The TData to be compared with.
      * @return true if the data of the wrapper is equal to the TData, false otherwise.
      */
-    bool operator==(const TData& val) const { return data_ == val; }
+    bool operator==(const TData& val) const { return data_p_ && *data_p_ == val; }
 
     /**
      * @brief Detach method.
@@ -152,11 +182,14 @@ public:
      * them as a std::pair.
      * @return A std::pair that contains the data and the holder.
      */
-    std::pair<TData, std::any> Detach() { return {std::exchange(data_, TData()), std::move(holder_)}; }
+    std::pair<std::unique_ptr<TData>, std::any> Detach()
+    {
+        return {std::exchange(data_p_, std::unique_ptr<TData>()), std::move(holder_)};
+    }
 
 private:
-    TData    data_;
-    std::any holder_;
+    std::unique_ptr<TData> data_p_;
+    std::any               holder_;
 };
 
 } // namespace xsdk::xbase

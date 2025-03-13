@@ -135,6 +135,12 @@ namespace xbase {
         virtual std::pair<CancelRes, std::future<FinishType>> TaskCancel(const TaskUid _task_uid) = 0;
 
         /**
+         * @brief Cancel all task.
+         * @return number of canceled tasks, active task finish future
+         */
+        virtual size_t TaskCancelAll() = 0;
+
+        /**
          * @brief Joins all the worker threads and clears the task queue if requested.
          * @param _cancel_tasks If true, all the tasks in the queue that have been
          * cancelled will be removed before joining the worker threads.
@@ -156,12 +162,25 @@ namespace xworker {
      * @brief Creates and sets up a new IWorker instance with optional configuration.
      * @param _on_idle: An optional OnIdleFunction to be called when the worker is idle.
      * @param _idle_timeout_msec: An optional idle timeout (in milliseconds).
-     * @param _max_tasks_count: An optional maximum number of tasks the worker can handle concurrently.
+     * @param _max_tasks_count: An optional maximum number of tasks the worker may have in task queue.
      * @return An IWorker::UPtr to the created and initialized worker instance.
      */
     IWorker::UPtr CreateWorker(OnIdleFunction&&               _on_idle           = {},
                                const std::optional<uint32_t>& _idle_timeout_msec = {},
                                const std::optional<size_t>&   _max_tasks_count   = {});
+
+    /**
+     * @brief Creates and sets up a new IWorker instance with optional configuration.
+     * @param _on_idle: An optional OnIdleFunction to be called when the worker is idle.
+     * @param _idle_timeout_msec: An optional idle timeout (in milliseconds).
+     * @param _max_tasks_count: An optional maximum number of tasks the worker may have in task queue.
+     * @return An IWorker::UPtr to the created and initialized worker instance.
+     */
+    std::pair<IWorker::UPtr, IWorker::TaskUid> CreateWorkerWithTask(
+        IWorker::TaskFunction&&        _worker_task,
+        OnIdleFunction&&               _on_idle           = {},
+        const std::optional<uint32_t>& _idle_timeout_msec = {},
+        const std::optional<size_t>&   _max_tasks_count   = {});
 
     static constexpr size_t   kDefPoolMinSize         = 1;
     static constexpr size_t   kDefPoolMaxSize         = 32;

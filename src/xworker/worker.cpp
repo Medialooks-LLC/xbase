@@ -9,6 +9,17 @@ xbase::IWorker::UPtr xworker::CreateWorker(OnIdleFunction&&               _on_id
     return std::make_unique<xbase::impl::WorkerImpl>(std::move(_on_idle), _idle_timeout_msec, _max_tasks_count);
 }
 
+std::pair<xbase::IWorker::UPtr, xbase::IWorker::TaskUid> xworker::CreateWorkerWithTask(
+    IWorker::TaskFunction&&        _worker_task,
+    OnIdleFunction&&               _on_idle,
+    const std::optional<uint32_t>& _idle_timeout_msec,
+    const std::optional<size_t>&   _max_tasks_count)
+{
+    auto worker_p = CreateWorker(std::move(_on_idle), _idle_timeout_msec, _max_tasks_count);
+    auto task_uid = worker_p->TaskPut(std::move(_worker_task));
+    return {std::move(worker_p), task_uid};
+}
+
 namespace xbase::impl {
 
     WorkerImpl::WorkerImpl(xworker::OnIdleFunction&&      _on_idle,
@@ -81,6 +92,26 @@ namespace xbase::impl {
             return {CancelRes::kCanceled, std::future<IWorker::FinishType> {}};
 
         return {CancelRes::kNotFound, std::future<IWorker::FinishType> {}};
+    }
+
+    size_t WorkerImpl::TaskCancelAll()
+    {
+        std::unique_lock lck(mtx_);
+
+        size_t canceled = tasks_queue_->EraseAll(FinishType::kCanceled);
+
+        if (executed_task_id_.load() == xbase::kInvalidUid)
+            return canceled;
+
+        auto cancel_future = tasks_queue_->CancelMarkAdd(executed_task_id_.load());
+        ++canceled;
+
+        lck.unlock();
+        
+        if (cancel_future.valid())
+            cancel_future.wait();
+
+        return canceled;
     }
 
     bool WorkerImpl::Join(const bool _cancel_tasks)

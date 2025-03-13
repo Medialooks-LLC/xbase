@@ -52,6 +52,8 @@ public:
 
     virtual std::pair<CancelRes, std::future<FinishType>> TaskCancel(const TaskUid _task_uid) override;
 
+    virtual size_t TaskCancelAll() override;
+
     virtual bool Join(const bool _cancel_tasks) override;
 
     virtual State WorkerState() const override;
