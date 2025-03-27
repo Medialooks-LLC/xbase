@@ -35,6 +35,11 @@ xbase::IClock::UPtr xclock::Create(const ISyncGenerator::SPtrC& _sync_gen, std::
     return std::make_unique<impl::ClockBasic>(_sync_gen, std::move(_start_time));
 }
 
+xbase::IClock::UPtr xclock::Create(const Time64 _start_from, const bool _monotonic)
+{
+    return xclock::Create(xclock::SteadySyncGen(_monotonic), _start_from);
+}
+
 xbase::IClock::UPtr xclock::Clone(const IClock* _base_p, const AdjustType _adjuct_type, std::optional<Time64>&& _value)
 {
     assert(_base_p);
@@ -62,11 +67,14 @@ xbase::IClock::UPtr xclock::CreateOrClone(const IClock*                _base_p,
 // Aliases
 xbase::Time64 xclock::SysTime() { return Timestamp<std::chrono::system_clock, time64::kSecond>(); }
 xbase::Time64 xclock::HighResTime() { return Timestamp<std::chrono::high_resolution_clock, time64::kSecond>(); }
-xbase::Time64 xclock::UtcTime(const int32_t _utc_timezone)
+xbase::Time64 xclock::UtcTime()
 {
-    return Timestamp<std::chrono::system_clock, time64::kSecond>() + time64::kEpochShift +
-           _utc_timezone * time64::kHour;
+    return Timestamp<std::chrono::system_clock, time64::kSecond>() + time64::kEpochShift;
 }
+
+static xbase::Time64 application_start_utc = xclock::UtcTime();
+xbase::Time64 xclock::ApplicationStartUtc() { return application_start_utc; }
+
 const xbase::ISyncGenerator::SPtrC& xclock::SysSyncGen(bool _monotonic_increase)
 {
     return xclock::SyncGenStd<std::chrono::system_clock>(_monotonic_increase);

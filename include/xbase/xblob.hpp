@@ -172,4 +172,36 @@ using XBuffer = BufferTyped<uint8_t>;
  */
 using XBufferC = BufferTypedC<uint8_t>;
 
+/**
+ * @brief A @ref create and allocate memory for BufferTyped with data type.
+ */
+template <typename TData>
+BufferTyped<TData> BufferCreate(const size_t _size, const TData* _data_p)
+{
+    if (_size == 0)
+        return {};
+
+    std::vector<TData> holder(_size);
+    if (_data_p)
+        std::memcpy(holder.data(), _data_p, sizeof(TData) * _size);
+
+    return BufferTyped<TData> {BlobTyped<TData> {holder.size(), holder.data()}, std::move(holder)};
+}
+
+/**
+ * @brief A @ref create and allocate memory for BufferTyped with data type.
+ */
+template <typename TData>
+BufferTypedC<TData> BufferCreateC(const size_t _size, const TData* _data_p)
+{
+    if (_size == 0)
+        return {};
+
+    std::vector<TData> holder(_size);
+    if (_data_p)
+        std::memcpy(holder.data(), _data_p, sizeof(TData) * _size);
+
+    return BufferTypedC<TData> {BlobTypedC<TData> {holder.size(), holder.data()}, std::move(holder)};
+} 
+
 } // namespace xsdk::xbase

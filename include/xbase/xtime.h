@@ -96,19 +96,25 @@ namespace time64 {
     static constexpr Time64 kEpochSysToFileClock = -1 * kEpochShift;
     static constexpr Time64 kEpochFileToSysClock = kEpochShift;
 
-    constexpr double ToUnits(Time64 _time_rt, Time64 _unit)
+    constexpr double ToUnits(const Time64 _time_rt, const Time64 _unit)
     {
         return _time_rt != kNoVal ? (double)_time_rt / _unit : std::numeric_limits<double>::min();
     }
-    constexpr Time64 FromUnits(double _time_dbl, Time64 _unit)
+    constexpr Time64 FromUnits(const double _time_dbl, const Time64 _unit)
     {
         return _time_dbl != std::numeric_limits<double>::min() ? (Time64)(_time_dbl * _unit) : kNoVal;
     }
 
-    constexpr double ToMsec(Time64 _time_rt) { return ToUnits(_time_rt, kMsec); }
+    constexpr double ToMsec(const Time64 _time_rt) { return ToUnits(_time_rt, kMsec); }
     constexpr Time64 FromMsec(const double& _time_dbl) { return FromUnits(_time_dbl, kMsec); }
-    constexpr double ToSec(Time64 _time_rt) { return ToUnits(_time_rt, kSecond); }
+    constexpr double ToSec(const Time64 _time_rt) { return ToUnits(_time_rt, kSecond); }
     constexpr Time64 FromSec(const double& _time_dbl) { return FromUnits(_time_dbl, kSecond); }
+
+    inline std::optional<Time64> ToOptional(const Time64 _time_rt, const Time64 _invalid_rt_value = kNoVal)
+    {
+        return _time_rt != _invalid_rt_value ? std::optional<Time64>(_time_rt) : std::nullopt;
+    }
+
 } // namespace time64
 
 } // namespace xsdk

@@ -199,6 +199,12 @@ namespace xclock {
      */
     IClock::UPtr Create(const ISyncGenerator::SPtrC& _sync_gen, std::optional<Time64>&& _start_time = {});
 
+
+     /**
+     * @brief Create basic steady clock
+     */
+    IClock::UPtr Create(const Time64 _start_from = 0, const bool _monotonic = false);
+
     /**
      * @brief Adjustment types for IClock clone function
      * @see Clone
@@ -236,16 +242,23 @@ namespace xclock {
 
     /// @name Aliases for Timestamp<>
     /// @{
-    /// @brief The current system time, in seconds since 1970
+    /// @brief The current system time, in 100 nsec units since 1970 (windows filetime)
     Time64 SysTime();
     /// @brief The current high-resolution time, in seconds
     Time64 HighResTime();
     /**
-     * @brief The current UTC time, in seconds since 1601
+     * @brief The current UTC time, in 100 nsec units since 1601 (unix timestamp)
      * @param _utc_timezone Timezone offset from UTC, in hours
      * @return The current UTC time
      */
-    Time64 UtcTime(const int32_t _utc_timezone = 0);
+    Time64 UtcTime();
+
+    /**
+     * @brief The application statrt UTC time, in 100 nsec units since 1601 (unix timestamp)
+     * @param _utc_timezone Timezone offset from UTC, in hours
+     * @return The current UTC time
+     */
+    Time64 ApplicationStartUtc();
     /// @}
 
     /// @name Aliases for SyncGenStd<>
