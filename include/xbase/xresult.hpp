@@ -199,7 +199,7 @@ public:
 
     // For shared_ptr/unique_ptr
     template <typename T = TResult, std::enable_if_t<is_smart_ptr<T>::value, bool> = true>
-    typename T::element_type* operator->()
+    typename T::element_type* operator->() const
     {
         auto* res_p = std::get_if<T>(this);
         assert(res_p);
@@ -210,7 +210,7 @@ public:
     }
 
     template <typename T = TResult, std::enable_if_t<is_smart_ptr<T>::value, bool> = true>
-    [[nodiscard]] typename T::element_type* GetPtr()
+    [[nodiscard]] typename T::element_type* GetPtr() const
     {
         auto* res_p = std::get_if<T>(this);
         if (res_p)
@@ -218,6 +218,7 @@ public:
 
         return nullptr;
     }
+
 };
 
 } // namespace xsdk::xbase

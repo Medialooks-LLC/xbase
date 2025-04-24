@@ -73,7 +73,7 @@ xbase::Time64 xclock::UtcTime()
 }
 
 static xbase::Time64 application_start_utc = xclock::UtcTime();
-xbase::Time64 xclock::ApplicationStartUtc() { return application_start_utc; }
+xbase::Time64        xclock::ApplicationStartUtc() { return application_start_utc; }
 
 const xbase::ISyncGenerator::SPtrC& xclock::SysSyncGen(bool _monotonic_increase)
 {
@@ -147,8 +147,91 @@ std::pair<bool, double> xbase::ClockHR::ResetLapMsec(const double _min_lap_msec)
 
 inline xbase::Time64 xbase::ClockHR::Time_() const { return xclock::HighResSyncGen(monotonic_increase_)->Timestamp(); }
 
+std::atomic_bool         is_shutdown_ = {false};
+std::condition_variable& DefaultClockEvent()
+{
+    static std::condition_variable cv_clock_event;
+    return cv_clock_event;
+}
+
+std::pair<xbase::Time64, xbase::Time64> xclock::EventWaitClockTime(std::condition_variable&      _cv_event,
+                                                                   std::unique_lock<std::mutex>* _lck_p,
+                                                                   const xbase::IClock*          _clock_p,
+                                                                   const xbase::Time64           _wait_untill,
+                                                                   const xbase::Time64           _skip_wait_if_less)
+{
+    assert(_clock_p);
+    if (!_clock_p)
+        return {time64::kNoVal, time64::kNoVal};
+
+    if (_clock_p->Time() + _skip_wait_if_less >= _wait_untill)
+        return {};
+
+    static std::mutex mtx_static;
+
+    std::unique_ptr<std::unique_lock<std::mutex>> lck_p(_lck_p);
+    if (!lck_p)
+        lck_p = std::make_unique<std::unique_lock<std::mutex>>(mtx_static);
+
+    std::cv_status wait_res   = std::cv_status::timeout;
+    auto           start_time = _clock_p->Time();
+    auto           clock_time = start_time;
+    while (clock_time + _skip_wait_if_less < _wait_untill) {
+        auto wait_res = _cv_event.wait_for(
+            *lck_p,
+            std::chrono::microseconds((_wait_untill - clock_time) / time64::kMisec)); //-V1089
+        clock_time = _clock_p->Time();
+
+        if (wait_res == std::cv_status::no_timeout) {
+            if (lck_p.get() == _lck_p)
+                lck_p.release();
+
+            return {clock_time - start_time, time64::kNoVal};
+        }
+    }
+
+    if (lck_p.get() == _lck_p)
+        lck_p.release();
+
+    return {clock_time - start_time, _wait_untill - start_time};
+}
+
+std::pair<xbase::Time64, xbase::Time64> xclock::WaitClockTime(const xbase::IClock* _clock_p,
+                                                              const xbase::Time64  _wait_untill,
+                                                              const xbase::Time64  _skip_wait_if_less)
+{
+    assert(_clock_p);
+    if (!_clock_p)
+        return {time64::kNoVal, time64::kNoVal};
+
+    xbase::Time64 wait_real = {};
+    xbase::Time64 wait_exp  = {};
+    while (_clock_p->Time() + _skip_wait_if_less < _wait_untill) {
+        std::tie(
+            wait_real,
+            wait_exp) = EventWaitClockTime(DefaultClockEvent(), nullptr, _clock_p, _wait_untill, _skip_wait_if_less);
+
+        assert(wait_real != time64::kNoVal);
+        if (wait_exp != time64::kNoVal || is_shutdown_.load())
+            break;
+    }
+
+    return {wait_real, wait_exp};
+}
+
 // Clock & Syn gen impl
-namespace xbase::impl {
+namespace xclock::impl {
+
+    class SignalOnClose {
+    public:
+        ~SignalOnClose()
+        {
+            is_shutdown_.store(true);
+            DefaultClockEvent().notify_all();
+        }
+    };
+
+    static SignalOnClose signal_on_close_global;
 
     ClockBasic::ClockBasic(const ISyncGenerator::SPtrC& _base_clock, std::optional<Time64>&& _clock_start_time)
         : sync_gen_p_(_base_clock)
@@ -200,5 +283,5 @@ namespace xbase::impl {
         }
         assert(false);
     }
-} // namespace xbase::impl
+} // namespace xclock::impl
 } // namespace xsdk

@@ -5,12 +5,16 @@ namespace xsdk {
 xbase::IWorker::UPtr xworker::CreatePool(const size_t                 _min_workers,
                                          const size_t                 _max_workers,
                                          const uint32_t               _idle_timeout_msec,
-                                         const std::optional<size_t>& _max_tasks_count)
+                                         const std::optional<size_t>& _max_tasks_count,
+                                         OnThreadStartedFunction&&    _on_started,
+                                         OnThreadFinishedFunction&&   _on_finished)
 {
     return std::make_unique<xbase::impl::PoolWorkersImpl>(_min_workers,
                                                           _max_workers,
                                                           _idle_timeout_msec,
                                                           _max_tasks_count,
+                                                          std::move(_on_started),
+                                                          std::move(_on_finished),
                                                           true);
 }
 
@@ -41,15 +45,19 @@ namespace xbase::impl {
         return nullptr;
     }
 
-    PoolWorkersImpl::PoolWorkersImpl(size_t                       _min_workers,
-                                     size_t                       _max_workers,
-                                     const uint32_t               _idle_timeout,
-                                     const std::optional<size_t>& _max_tasks_count,
-                                     bool                         _fast_on_idle)
+    PoolWorkersImpl::PoolWorkersImpl(size_t                              _min_workers,
+                                     size_t                              _max_workers,
+                                     const uint32_t                      _idle_timeout,
+                                     const std::optional<size_t>&        _max_tasks_count,
+                                     xworker::OnThreadStartedFunction&&  _on_started,
+                                     xworker::OnThreadFinishedFunction&& _on_finished,
+                                     bool                                _fast_on_idle)
         : min_workers_(_min_workers),
           max_workers_(_max_workers),
           idle_timeout_(_idle_timeout),
           max_tasks_count_(_max_tasks_count),
+          on_started_pf_(std::move(_on_started)),
+          on_finished_pf_(std::move(_on_finished)),
           fast_on_idle_(_fast_on_idle),
           tasks_queue_(CreateTaskQueue())
     {
@@ -301,7 +309,11 @@ namespace xbase::impl {
         if (workers_.size() >= max_workers_)
             return {xbase::npos, nullptr};
 
-        auto worker_p = xworker::CreateWorker([this](auto* _worker_p) { OnIdle_(_worker_p); }, _idle_timeout_msec);
+        auto worker_p = xworker::CreateWorker([this](auto* _worker_p) { OnIdle_(_worker_p); },
+                                              _idle_timeout_msec,
+                                              {}, // 2Think: to add max task ?
+                                              xworker::OnThreadStartedFunction(on_started_pf_),
+                                              xworker::OnThreadFinishedFunction(on_finished_pf_));
 
         workers_.push_back(std::move(worker_p));
         return {workers_.size() - 1, workers_.back().get()};

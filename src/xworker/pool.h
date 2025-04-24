@@ -35,15 +35,13 @@ class PoolWorkersImpl: public IWorker {
 
     static constexpr xbase::Time64 kNonActivePrefersTimeout = time64::FromSec(60);
 
-    mutable std::shared_mutex rw_;
-
-    mutable std::vector<IWorker::UPtr> workers_;
-    std::atomic<size_t>                executing_now_ = {};
-    const size_t                       min_workers_   = 0;
-    const size_t                       max_workers_   = 0;
-    const uint32_t                     idle_timeout_  = 0;
-    std::optional<size_t>              max_tasks_count_;
-    const bool                         fast_on_idle_ = true;
+    const size_t                            min_workers_  = 0;
+    const size_t                            max_workers_  = 0;
+    const uint32_t                          idle_timeout_ = 0;
+    const std::optional<size_t>             max_tasks_count_;
+    const xworker::OnThreadStartedFunction  on_started_pf_;
+    const xworker::OnThreadFinishedFunction on_finished_pf_;
+    const bool                              fast_on_idle_ = true;
 
     class PreferWorker {
         size_t          worker_idx_         = xbase::npos;
@@ -63,20 +61,28 @@ class PoolWorkersImpl: public IWorker {
         void          UpdateActivity() { activity_timestamp_ = xclock::UtcTime(); }
         xbase::Time64 InactiveTime() const { return xclock::UtcTime() - activity_timestamp_; }
     };
+
+    mutable std::shared_mutex rw_;
+
+    mutable std::vector<IWorker::UPtr>       workers_; // mutable for const FreeExpiredWorkers_ (TODO: Change logic)
+    std::atomic<size_t>                      executing_now_ = {};
+
     std::map<IWorker::TaskUid, PreferWorker> tasks_prefer_workers_;
 
     // Awaited tasks
-    ITasksQueue::UPtr tasks_queue_;
+    const ITasksQueue::UPtr tasks_queue_;
 
-    xbase::ClockHR                 clock_expired_;
+    xbase::ClockHR                 clock_expired_;  // TODO: Change to IClock, remove ClockHR class
     static constexpr xbase::Time64 kCheckExpiredPeriod64 = time64::FromMsec(100);
 
 public:
-    PoolWorkersImpl(size_t                       _min_workers,
-                    size_t                       _max_workers,
-                    const uint32_t               _idle_timeout,
-                    const std::optional<size_t>& _max_tasks_count,
-                    bool                         _fast_on_idle);
+    PoolWorkersImpl(size_t                              _min_workers,
+                    size_t                              _max_workers,
+                    const uint32_t                      _idle_timeout,
+                    const std::optional<size_t>&        _max_tasks_count,
+                    xworker::OnThreadStartedFunction&&  _on_started,
+                    xworker::OnThreadFinishedFunction&& _on_finished,
+                    bool                                _fast_on_idle);
 
     virtual ~PoolWorkersImpl() { PoolWorkersImpl::Join(true); }
 
@@ -107,7 +113,7 @@ private:
 
     size_t FreeExpiredPrefers_(const xbase::Time64 _non_active_timeout);
 
-    //std::optional<size_t> WorkerIndex_(const IWorker* _idle_worker_p);
+    // std::optional<size_t> WorkerIndex_(const IWorker* _idle_worker_p);
 
     void OnIdle_(IWorker* _idle_worker_p);
 

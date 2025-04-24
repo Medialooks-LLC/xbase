@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 
 using namespace xsdk;
@@ -291,6 +293,211 @@ TEST(xclock_tests, create_clone_clock)
 
     EXPECT_GE(t, time64::kDay);
     EXPECT_LE(t, time64::kDay + time64::FromMsec(10));
+}
+
+TEST(xtime_tests, frame_aligment_check)
+{
+    std::vector<std::pair<int64_t, int64_t>> frame_rates  = {{30000, 1001}, {25, 1}, {60, 1}, {24000, 1001}};
+    int64_t                                  border_check = 1000;
+    for (auto rate : frame_rates) {
+        std::pair<int64_t, int64_t> block = {time64::kSecond * rate.second, rate.first};
+
+        const size_t start_idx = 1'000'000;
+        for (size_t idx = start_idx; idx < start_idx + 10000; idx += 537) {
+            int64_t time_dbl = std::llround((double)(idx /*+ 1'000'000*/) * block.first / block.second);
+            int64_t time     = time64::BlockStart(idx, block.first, block.second);
+            ASSERT_EQ(time_dbl, time) << "Not EQ idx:" << idx;
+            auto check_idx = time * block.second / block.first;
+
+            for (int64_t shift = -1 * border_check; shift < border_check; ++shift) {
+                auto time_check = time + shift;
+
+                auto [low,
+                      idx_low] = time64::BlockAlign(time_check, block.first, block.second, time64::AlignType::kLower);
+                auto low_2 = time64::BlockAlign(low - 2, block.first, block.second, time64::AlignType::kLower).first;
+                if (shift >= 0)
+                    ASSERT_GE(idx_low, idx);
+                else
+                    ASSERT_LE(idx_low, idx);
+                if (low_2 > 0)
+                    ASSERT_NE(low, low_2);
+
+                auto [up,
+                      idx_up] = time64::BlockAlign(time_check, block.first, block.second, time64::AlignType::kUpper);
+                auto up_2     = time64::BlockAlign(up + 2, block.first, block.second, time64::AlignType::kUpper).first;
+
+                if (shift >= 0)
+                    ASSERT_GE(idx_up, idx);
+                else
+                    ASSERT_LE(idx_up, idx);
+                if (up_2 > 0 && up == up_2)
+                    ASSERT_NE(up, up_2);
+
+                std::vector<time64::AlignType> vec_aligns = {time64::AlignType::kLower,
+                                                             time64::AlignType::kUpper,
+                                                             time64::AlignType::kRound};
+                for (const auto align : vec_aligns) {
+
+                    auto aligned = time64::BlockAlign(time_check, block.first, block.second, align).first;
+                    for (const auto align_back : vec_aligns) {
+                        auto aligned_back = time64::BlockAlign(aligned, block.first, block.second, align_back).first;
+                        ASSERT_EQ(aligned, aligned_back);
+                    }
+                }
+            }
+        }
+    }
+}
+TEST(xtime_tests, frame_aligment)
+{
+    std::vector<xbase::Time64> values = {1,
+                                         time64::FromMsec(20),
+                                         time64::FromMsec(100 / 3.0),
+                                         time64::FromMsec(40),
+                                         time64::FromMsec(50),
+                                         time64::FromMsec(70),
+                                         time64::FromMsec(100),
+                                         time64::FromSec(3600 * 1000.0)};
+
+    std::vector<std::pair<xbase::Time64, int64_t>> result;
+    for (const auto val : values) {
+        result.push_back({-1, -1});
+        result.push_back({0, val});
+        result.push_back({-1, -1});
+        result.push_back(time64::BlockAlign(val, time64::FromMsec(1001), 60, time64::AlignType::kUpper));
+        result.push_back(time64::BlockAlign(val, time64::FromMsec(1001), 60, time64::AlignType::kRound));
+        result.push_back(time64::BlockAlign(val, time64::FromMsec(1001), 60, time64::AlignType::kLower));
+        result.push_back(time64::BlockAlign(val, time64::FromMsec(20)));
+        result.push_back(time64::BlockAlign(val, time64::kSecond, 50, time64::AlignType::kUpper));
+        result.push_back(time64::BlockAlign(val, time64::kSecond, 30, time64::AlignType::kRound));
+        result.push_back(time64::BlockAlign(val, time64::kSecond, 48000, time64::AlignType::kUpper));
+        result.push_back(time64::BlockAlign(val, time64::kSecond, 44100, time64::AlignType::kUpper));
+        result.push_back(time64::BlockAlign(val, time64::FromSec(1.001), 24));
+        result.push_back(time64::BlockAlign(val, time64::FromSec(1.001), 30));
+        result.push_back(time64::BlockAlign(val, time64::kSecond * 1001, 60000));
+        result.push_back(time64::BlockAlign(val, time64::kSecond, 60));
+    }
+
+    for (const auto [val, idx] : result)
+        if (val < 0)
+            std::cout << std::endl;
+        else
+            std::cout << std::fixed << std::setprecision(3) << "idx:" << idx << " val:" << time64::ToMsec(val) << " ";
+
+#ifndef _XSDK_CI_BUILD_
+    // EXPECT_FALSE(1);
+#endif
+}
+
+TEST(xclock_tests, wait_clock)
+{
+    auto clock_p = xclock::Create();
+
+    int  msec_wait = 1500;
+    auto wait_till = clock_p->Time() + time64::FromMsec(msec_wait);
+
+    auto [real, expt] = xclock::WaitClockTime(clock_p.get(), wait_till);
+    std::cout << "Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
+    EXPECT_NE(expt, time64::kNoVal) << "LOOK like Event signalid BUT DOES NOT";
+    EXPECT_GE(std::abs(time64::ToMsec(real - expt)), 0.00001);
+    EXPECT_LE(std::abs(time64::ToMsec(real - expt)), 30.0);
+
+    EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 30.0);
+}
+
+TEST(xclock_tests, no_wait_clock)
+{
+    auto clock_p = xclock::Create();
+
+    int  msec_wait = -1000;
+    auto wait_till = clock_p->Time() + time64::FromMsec(msec_wait);
+
+    auto [real, expt] = xclock::WaitClockTime(clock_p.get(), wait_till);
+    std::cout << "Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
+    EXPECT_EQ(real, 0);
+    EXPECT_EQ(expt, 0);
+
+    std::condition_variable cv_fake;
+    std::tie(real, expt) = xclock::EventWaitClockTime(cv_fake, nullptr, clock_p.get(), wait_till);
+    std::cout << "Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
+    EXPECT_EQ(real, 0);
+    EXPECT_EQ(expt, 0);
+}
+
+TEST(xclock_tests, Manual_wait_global_cancel)
+{
+    std::thread wait_thread([]() {
+        auto clock_p   = xclock::Create();
+        auto wait_till = clock_p->Time() + time64::FromSec(100.0);
+
+        auto [real, expt] = xclock::WaitClockTime(clock_p.get(), wait_till);
+        std::cout << "Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
+    });
+
+    // Wait till threed started
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // Detach thread
+    wait_thread.detach();
+
+    // SignalOnClose should set the global clock event, but can be checked only under debugger
+}
+
+TEST(xclock_tests, wait_with_cancel)
+{
+    auto          clock_p   = xclock::Create();
+    auto          wait_till = clock_p->Time() + time64::FromSec(100.0);
+    xbase::Time64 real      = 0;
+    xbase::Time64 expt      = 0;
+
+    int                     msec_wait = 100;
+    std::condition_variable cv_event;
+
+    std::thread wait_thread([&]() {
+        std::tie(real, expt) = xclock::EventWaitClockTime(cv_event, nullptr, clock_p.get(), wait_till);
+        std::cout << "Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(msec_wait));
+    std::cout << "Notify" << std::endl;
+    cv_event.notify_all();
+    wait_thread.join();
+
+    EXPECT_EQ(expt, time64::kNoVal);
+    EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 30.0);
+}
+
+TEST(xclock_tests, wait_with_cancel_mtx)
+{
+    auto          clock_p   = xclock::Create();
+    auto          wait_till = clock_p->Time() + time64::FromSec(100.0);
+    xbase::Time64 real      = 0;
+    xbase::Time64 expt      = 0;
+
+    int                     msec_wait = 1000;
+    std::condition_variable cv_event;
+    std::mutex              mtx;
+    std::unique_lock        lck_outer(mtx);
+
+    std::thread wait_thread([&]() {
+        std::unique_lock lck_inner(mtx);
+        cv_event.notify_all();
+        std::tie(real, expt) = xclock::EventWaitClockTime(cv_event, &lck_inner, clock_p.get(), wait_till);
+        std::cout << "Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
+    });
+
+    // Wait till thread started (unlock mutex while wait)
+    cv_event.wait(lck_outer);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(msec_wait));
+    std::cout << "Notify" << std::endl;
+    cv_event.notify_all();
+    lck_outer.unlock();
+
+    wait_thread.join();
+
+    EXPECT_EQ(expt, time64::kNoVal);
+    EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 30.0);
 }
 
 // NOLINTEND(*)

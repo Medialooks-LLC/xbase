@@ -5,7 +5,9 @@
 #include "xuid.h"
 
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <mutex>
 #include <thread>
 
 namespace xsdk {
@@ -177,10 +179,24 @@ namespace xclock {
     template <typename TClock, uint64_t TTicksPerSecond>
     static int64_t Timestamp()
     {
-        using namespace std::chrono;
         static_assert(TTicksPerSecond > 0);
         static constexpr int64_t nsec_per_tick = 1'000'000'000 / TTicksPerSecond;
-        return time_point_cast<nanoseconds>(TClock::now()).time_since_epoch().count() / nsec_per_tick;
+        return std::chrono::time_point_cast<std::chrono::nanoseconds>(TClock::now()).time_since_epoch().count() /
+               nsec_per_tick;
+    }
+    /**
+     * @brief helper for get clock time_point with msec from now
+     */
+    template <typename TClock>
+    typename TClock::time_point TimepointFromNow(const double _add_msec)
+    {
+        return TClock::now() + std::chrono::microseconds((int64_t)std::ceil(_add_msec / 1000.0));
+    }
+    template <class TClock, class TDuration>
+    double ElapcedMsec(const std::chrono::time_point<TClock, TDuration>& _abs_time)
+    {
+        auto microsec = std::chrono::duration_cast<std::chrono::microseconds>((TClock::now())-_abs_time);
+        return microsec / 1000.0;
     }
 
     /**
@@ -199,8 +215,7 @@ namespace xclock {
      */
     IClock::UPtr Create(const ISyncGenerator::SPtrC& _sync_gen, std::optional<Time64>&& _start_time = {});
 
-
-     /**
+    /**
      * @brief Create basic steady clock
      */
     IClock::UPtr Create(const Time64 _start_from = 0, const bool _monotonic = false);
@@ -252,7 +267,6 @@ namespace xclock {
      * @return The current UTC time
      */
     Time64 UtcTime();
-
     /**
      * @brief The application statrt UTC time, in 100 nsec units since 1601 (unix timestamp)
      * @param _utc_timezone Timezone offset from UTC, in hours
@@ -304,6 +318,28 @@ namespace xclock {
      */
     const IClock* UtcClock(bool _monotonic_increase);
     /// @}
+
+    /**
+     * @brief helper for wait specified clock time
+     * @return: Error ->   {kNoVal, kNoVal}
+     *          No wait -> {0, 0}
+     *          Wait ->    {The real wait time, the expected wait time, kNoVal if event signaled}
+     */
+    std::pair<xbase::Time64, xbase::Time64> WaitClockTime(const xbase::IClock* _clock_p,
+                                                          const xbase::Time64  _wait_untill,
+                                                          const xbase::Time64  _skip_wait_if_less = 0);
+
+    /**
+     * @brief helper for wait condition_variable for specified clock time
+     * @return: Error ->   {kNoVal, kNoVal}
+     *          No wait -> {0, 0}
+     *          Wait ->    {The real wait time, the expected wait time, kNoVal if event signaled}
+     */
+    std::pair<xbase::Time64, xbase::Time64> EventWaitClockTime(std::condition_variable&      _cv_event,
+                                                               std::unique_lock<std::mutex>* _lck_p,
+                                                               const xbase::IClock*          _clock_p,
+                                                               const xbase::Time64           _wait_untill,
+                                                               const xbase::Time64           _skip_wait_if_less = 0);
 
 } // namespace xclock
 

@@ -157,7 +157,9 @@ namespace xworker {
     /**
      * @brief Type alias for a function accepting an IWorker pointer which descride what worker should do on idle.
      */
-    using OnIdleFunction = std::function<void(IWorker* _this)>;
+    using OnIdleFunction           = std::function<void(IWorker* _this)>;
+    using OnThreadStartedFunction  = std::function<void(const IWorker* _this)>;
+    using OnThreadFinishedFunction = std::function<void(const IWorker* _this)>;
     /**
      * @brief Creates and sets up a new IWorker instance with optional configuration.
      * @param _on_idle: An optional OnIdleFunction to be called when the worker is idle.
@@ -167,7 +169,9 @@ namespace xworker {
      */
     IWorker::UPtr CreateWorker(OnIdleFunction&&               _on_idle           = {},
                                const std::optional<uint32_t>& _idle_timeout_msec = {},
-                               const std::optional<size_t>&   _max_tasks_count   = {});
+                               const std::optional<size_t>&   _max_tasks_count   = {},
+                               OnThreadStartedFunction&&      _on_started        = {},
+                               OnThreadFinishedFunction&&     _on_finished       = {});
 
     /**
      * @brief Creates and sets up a new IWorker instance with optional configuration.
@@ -180,7 +184,9 @@ namespace xworker {
         IWorker::TaskFunction&&        _worker_task,
         OnIdleFunction&&               _on_idle           = {},
         const std::optional<uint32_t>& _idle_timeout_msec = {},
-        const std::optional<size_t>&   _max_tasks_count   = {});
+        const std::optional<size_t>&   _max_tasks_count   = {},
+        OnThreadStartedFunction&&      _on_started        = {},
+        OnThreadFinishedFunction&&     _on_finished       = {});
 
     static constexpr size_t   kDefPoolMinSize         = 1;
     static constexpr size_t   kDefPoolMaxSize         = 32;
@@ -196,7 +202,9 @@ namespace xworker {
     IWorker::UPtr CreatePool(const size_t                 _min_workers       = kDefPoolMinSize,
                              const size_t                 _max_workers       = kDefPoolMaxSize,
                              const uint32_t               _idle_timeout_msec = kDefPoolIdleTimeoutMsec,
-                             const std::optional<size_t>& _max_tasks_count   = {});
+                             const std::optional<size_t>& _max_tasks_count   = {},
+                             OnThreadStartedFunction&&    _on_started        = {},
+                             OnThreadFinishedFunction&&   _on_finished       = {});
 
     // Execute sync in specified IWorker context (for keep execution in one thread context)
     // Note: If _pXThread is nullptr -> execute in calling thread
@@ -243,10 +251,10 @@ namespace xworker {
      * @param _required_state_mask An optional mask of required states for the worker.
      * @param _task_uid An optional task UID for the task.
      */
-    bool ExecuteSync(IWorker*                        _worker_p,
-                     std::function<void()>&&         _pf,
-                     std::optional<IWorker::State>&& _required_state_mask = {},
-                     std::optional<uint64_t>&&       _task_uid            = {});
+    bool ExecuteSyncVoid(IWorker*                        _worker_p,
+                         std::function<void()>&&         _pf,
+                         std::optional<IWorker::State>&& _required_state_mask = {},
+                         std::optional<uint64_t>&&       _task_uid            = {});
 
     /**
      * @brief Execute a non-void function asynchronously within a specified IWorker context.
@@ -294,10 +302,10 @@ namespace xworker {
      * @param _required_state_mask An optional mask of required states for the worker.
      * @return A future representing the result (repeat type) of the executed function.
      */
-    std::future<IWorker::FinishType> ExecuteAsync(IWorker*                               _worker_p,
-                                                  std::function<IWorker::RepeatType()>&& _pf,
-                                                  std::optional<IWorker::TaskUid>&&      _task_uid            = {},
-                                                  std::optional<IWorker::State>&&        _required_state_mask = {});
+    std::future<IWorker::FinishType> ExecuteAsyncVoid(IWorker*                               _worker_p,
+                                                      std::function<IWorker::RepeatType()>&& _pf,
+                                                      std::optional<IWorker::TaskUid>&&      _task_uid            = {},
+                                                      std::optional<IWorker::State>&&        _required_state_mask = {});
 } // namespace xworker
 
 } // namespace xsdk

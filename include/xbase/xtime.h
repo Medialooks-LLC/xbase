@@ -2,10 +2,12 @@
 
 #include <any>
 #include <atomic>
+#include <cassert>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -113,6 +115,49 @@ namespace time64 {
     inline std::optional<Time64> ToOptional(const Time64 _time_rt, const Time64 _invalid_rt_value = kNoVal)
     {
         return _time_rt != _invalid_rt_value ? std::optional<Time64>(_time_rt) : std::nullopt;
+    }
+
+    constexpr Time64 BlockStart(const int64_t _idx,
+                                const int64_t _block_len_num,
+                                const int64_t _block_len_den = 1,
+                                const Time64  _base          = 0)
+    {
+        assert(_block_len_num != 0 && _block_len_den != 0);
+        const auto gcd = std::gcd(_block_len_num, _block_len_den);
+        if (!gcd)
+            return _idx;
+
+        const auto num = _block_len_num / gcd;
+        const auto den = _block_len_den / gcd;
+        // TODO: MullDiv64
+        return _base + ((_idx * num) + den / 2) / den;
+    }
+
+    enum class AlignType { kLower, kRound, kUpper };
+    constexpr std::pair<Time64, int64_t> BlockAlign(const Time64    _val,
+                                                    const int64_t   _block_len_num,
+                                                    const int64_t   _block_len_den = 1,
+                                                    const AlignType _align_type    = AlignType::kLower,
+                                                    const Time64    _base          = 0)
+    {
+        assert(_block_len_num != 0 && _block_len_den != 0 && _block_len_num >= _block_len_den);
+        if (_block_len_num == 0 || _block_len_den == 0 || _block_len_num < _block_len_den)
+            return {_val, 0};
+
+        const auto gcd = std::gcd(_block_len_num, _block_len_den);
+        const auto num = _block_len_num / gcd;
+        const auto den = _block_len_den / gcd;
+
+        const auto num_rounding = _align_type == AlignType::kUpper ? (num - den) :
+                                  _align_type == AlignType::kRound ? num / 2 :
+                                                                     den - 1;
+        const auto base_val = _val - _base;
+        const auto idx      = ((base_val * den) + num_rounding) / num;
+#ifdef _DEBUG
+        const auto aligned_val = BlockStart(idx, _block_len_num, _block_len_den);
+        assert(idx == ((aligned_val * den) + num_rounding) / num);
+#endif
+        return {BlockStart(idx, _block_len_num, _block_len_den, _base), idx};
     }
 
 } // namespace time64

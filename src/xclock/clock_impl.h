@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <thread>
 
-namespace xsdk::xbase::impl {
+namespace xsdk::xclock::impl {
 
 template <class TClock, uint64_t TTicksPerSecond = time64::kSecond>
 class SyncGeneratorStd final: public xbase::ISyncGenerator {

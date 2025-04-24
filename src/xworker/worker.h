@@ -18,23 +18,31 @@ namespace xsdk::xbase::impl {
 class WorkerImpl final: public IWorker {
 
 private:
-    mutable std::mutex           mtx_;
+    const xworker::OnIdleFunction           on_idle_pf_;
+    const std::optional<uint32_t>           idle_timeout_msec_;
+    const std::optional<size_t>             max_tasks_count_;
+    const xworker::OnThreadStartedFunction  on_started_pf_;
+    const xworker::OnThreadFinishedFunction on_finished_pf_;
+
+    mutable std::mutex mtx_;
+
     std::unique_ptr<std::thread> worker_thread_p_;
     std::unique_ptr<std::thread> expired_thread_p_;
     std::atomic<bool>            joined_ = {false};
-    xworker::OnIdleFunction      on_idle_pf_;
 
     std::atomic<IWorker::TaskUid> executed_task_id_ = {xbase::kInvalidUid};
-    std::optional<uint32_t>       idle_timeout_msec_;
-    std::optional<size_t>         max_tasks_count_;
 
     std::condition_variable have_tasks_;
-    ITasksQueue::UPtr       tasks_queue_;
+    const ITasksQueue::UPtr tasks_queue_;
+
+    //std::error_code thread_start_cb_error_;
 
 public:
-    WorkerImpl(xworker::OnIdleFunction&&      _on_idle,
-               const std::optional<uint32_t>& _idle_timeout_msec,
-               const std::optional<size_t>&   _max_tasks_count);
+    WorkerImpl(xworker::OnIdleFunction&&           _on_idle,
+               const std::optional<uint32_t>&      _idle_timeout_msec,
+               const std::optional<size_t>&        _max_tasks_count,
+               xworker::OnThreadStartedFunction&&  _on_started,
+               xworker::OnThreadFinishedFunction&& _on_finished);
 
     virtual ~WorkerImpl();
 

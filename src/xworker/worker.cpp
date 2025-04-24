@@ -4,31 +4,47 @@ namespace xsdk {
 
 xbase::IWorker::UPtr xworker::CreateWorker(OnIdleFunction&&               _on_idle,
                                            const std::optional<uint32_t>& _idle_timeout_msec,
-                                           const std::optional<size_t>&   _max_tasks_count)
+                                           const std::optional<size_t>&   _max_tasks_count,
+                                           OnThreadStartedFunction&&      _on_started,
+                                           OnThreadFinishedFunction&&     _on_finished)
 {
-    return std::make_unique<xbase::impl::WorkerImpl>(std::move(_on_idle), _idle_timeout_msec, _max_tasks_count);
+    return std::make_unique<xbase::impl::WorkerImpl>(std::move(_on_idle),
+                                                     _idle_timeout_msec,
+                                                     _max_tasks_count,
+                                                     std::move(_on_started),
+                                                     std::move(_on_finished));
 }
 
 std::pair<xbase::IWorker::UPtr, xbase::IWorker::TaskUid> xworker::CreateWorkerWithTask(
     IWorker::TaskFunction&&        _worker_task,
     OnIdleFunction&&               _on_idle,
     const std::optional<uint32_t>& _idle_timeout_msec,
-    const std::optional<size_t>&   _max_tasks_count)
+    const std::optional<size_t>&   _max_tasks_count,
+    OnThreadStartedFunction&&      _on_started,
+    OnThreadFinishedFunction&&     _on_finished)
 {
-    auto worker_p = CreateWorker(std::move(_on_idle), _idle_timeout_msec, _max_tasks_count);
+    auto worker_p = CreateWorker(std::move(_on_idle),
+                                 _idle_timeout_msec,
+                                 _max_tasks_count,
+                                 std::move(_on_started),
+                                 std::move(_on_finished));
     auto task_uid = worker_p->TaskPut(std::move(_worker_task));
     return {std::move(worker_p), task_uid};
 }
 
 namespace xbase::impl {
 
-    WorkerImpl::WorkerImpl(xworker::OnIdleFunction&&      _on_idle,
-                           const std::optional<uint32_t>& _idle_timeout_msec,
-                           const std::optional<size_t>&   _max_tasks_count)
-        : on_idle_pf_(_on_idle),
+    WorkerImpl::WorkerImpl(xworker::OnIdleFunction&&           _on_idle,
+                           const std::optional<uint32_t>&      _idle_timeout_msec,
+                           const std::optional<size_t>&        _max_tasks_count,
+                           xworker::OnThreadStartedFunction&&  _on_started,
+                           xworker::OnThreadFinishedFunction&& _on_finished)
+        : on_idle_pf_(std::move(_on_idle)),
           idle_timeout_msec_(_idle_timeout_msec),
           max_tasks_count_(_max_tasks_count),
-          tasks_queue_(CreateTaskQueue())
+          tasks_queue_(CreateTaskQueue()),
+          on_started_pf_(std::move(_on_started)),
+          on_finished_pf_(std::move(_on_finished))
     {
     }
 
@@ -107,7 +123,7 @@ namespace xbase::impl {
         ++canceled;
 
         lck.unlock();
-        
+
         if (cancel_future.valid())
             cancel_future.wait();
 
@@ -190,6 +206,9 @@ namespace xbase::impl {
     {
         JoinExpired_();
 
+        if (on_started_pf_)
+            on_started_pf_(this);
+
         while (true) {
             std::unique_lock lck(mtx_);
 
@@ -247,6 +266,9 @@ namespace xbase::impl {
                 break;
             }
         }
+
+        if (on_finished_pf_)
+            on_finished_pf_(this);
     }
 } // namespace xbase::impl
 } // namespace xsdk

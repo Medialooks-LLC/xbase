@@ -39,7 +39,7 @@ TEST(xworker_tests, execute_async_tmpl_wo_worker)
 
 TEST(xworker_tests, execute_async_wo_worker)
 {
-    auto task_future = xworker::ExecuteAsync(nullptr, []() {
+    auto task_future = xworker::ExecuteAsyncVoid(nullptr, []() {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
         return xbase::IWorker::RepeatType::kDoNotRepeat;
     });
@@ -58,7 +58,7 @@ TEST(xworker_tests, execute_async_tmpl_wo_pf)
 TEST(xworker_tests, execute_async_wo_pf)
 {
     xbase::ClockHR clock;
-    auto           task_future = xworker::ExecuteAsync(xworker::CreateWorker().get(), nullptr);
+    auto           task_future = xworker::ExecuteAsyncVoid(xworker::CreateWorker().get(), nullptr);
 
     EXPECT_FALSE(task_future.valid());
 }
@@ -66,7 +66,7 @@ TEST(xworker_tests, execute_async_wo_pf)
 TEST(xworker_tests, execute_sync_wo_pf)
 {
     xbase::ClockHR clock;
-    auto           task_res = xworker::ExecuteSync(xworker::CreateWorker().get(), nullptr);
+    auto           task_res = xworker::ExecuteSyncVoid(xworker::CreateWorker().get(), nullptr);
 
     EXPECT_FALSE(task_res);
 }
@@ -79,7 +79,7 @@ TEST(xworker_tests, worker_execute_async_task_readd_canceled_task)
     auto          promise_sp = std::make_shared<std::promise<bool>>();
     auto          future     = promise_sp->get_future();
 
-    xworker::ExecuteAsync(
+    xworker::ExecuteAsyncVoid(
         worker_p.get(),
         [&]() {
             promise_sp->set_value(true);
@@ -90,7 +90,7 @@ TEST(xworker_tests, worker_execute_async_task_readd_canceled_task)
     [[maybe_unused]] auto val    = future.get();
     auto                  cancel = worker_p->TaskCancel(task_id);
     EXPECT_EQ(cancel.first, xbase::IWorker::CancelRes::kExecutingNow) << "Cancel valid task return strange res";
-    auto res = xworker::ExecuteAsync(
+    auto res = xworker::ExecuteAsyncVoid(
         worker_p.get(),
         [&]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_msec));
@@ -110,7 +110,7 @@ TEST(xworker_tests, worker_execute_sync__task_readd_canceled_task)
     auto          future     = promise_sp->get_future();
 
     std::thread           th([&]() {
-        xworker::ExecuteSync(
+        xworker::ExecuteSyncVoid(
             worker_p.get(),
             [&]() {
                 promise_sp->set_value(true);
@@ -123,7 +123,7 @@ TEST(xworker_tests, worker_execute_sync__task_readd_canceled_task)
     [[maybe_unused]] auto val    = future.get();
     auto                  cancel = worker_p->TaskCancel(task_id);
     EXPECT_EQ(cancel.first, xbase::IWorker::CancelRes::kExecutingNow) << "Cancel valid task return strange res";
-    auto res = xworker::ExecuteSync(
+    auto res = xworker::ExecuteSyncVoid(
         worker_p.get(),
         [&]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_msec));
@@ -145,7 +145,7 @@ TEST(xworker_tests, pool_add_task_requred_idle_state_to_busy_pool)
     auto          promise_sp = std::make_shared<std::promise<bool>>();
     auto          future     = promise_sp->get_future();
 
-    xworker::ExecuteAsync(
+    xworker::ExecuteAsyncVoid(
         worker_p.get(),
         [&]() {
             promise_sp->set_value(true);
@@ -156,7 +156,7 @@ TEST(xworker_tests, pool_add_task_requred_idle_state_to_busy_pool)
     [[maybe_unused]] auto val    = future.get();
     auto                  cancel = worker_p->TaskCancel(task_id);
     EXPECT_EQ(cancel.first, xbase::IWorker::CancelRes::kExecutingNow) << "Cancel valid task return strange res";
-    auto res = xworker::ExecuteAsync(
+    auto res = xworker::ExecuteAsyncVoid(
         worker_p.get(),
         [&]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_msec));
@@ -170,7 +170,7 @@ TEST(xworker_tests, pool_add_task_requred_idle_state_to_busy_pool)
 
 TEST(xworker_tests, execute_sync_wo_worker)
 {
-    auto task_res = xworker::ExecuteSync(nullptr, []() {
+    auto task_res = xworker::ExecuteSyncVoid(nullptr, []() {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
         return xbase::IWorker::RepeatType::kDoNotRepeat;
     });
@@ -352,6 +352,42 @@ TEST(xworker_tests, worker_get_max_tasks)
 {
     auto worker_p = xworker::CreateWorker({}, {}, 2);
     ASSERT_EQ(2, worker_p->MaxTasks()) << "Wrong max tasks number";
+}
+
+TEST(xworker_tests, worker_init_finish)
+{
+    std::atomic_bool      init_called   = {false};
+    std::atomic_bool      finish_called = {false};
+    std::atomic_bool      task_called   = {false};
+    const xbase::IWorker* check_in      = nullptr;
+    const xbase::IWorker* check_out     = nullptr;
+
+    auto worker_p = xworker::CreateWorker(
+        {},
+        100,
+        {},
+        [&](const auto* _worker_p) {
+            init_called.store(true);
+            check_in = _worker_p;
+        },
+        [&](const auto* _worker_p) {
+            finish_called.store(true);
+            check_out = _worker_p;
+        });
+
+    worker_p->TaskPut([&]() {
+        EXPECT_TRUE(init_called.load());
+        task_called.store(true);
+        return xbase::IWorker::RepeatType::kDoNotRepeat;
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    EXPECT_TRUE(init_called.load());
+    EXPECT_TRUE(task_called.load());
+    EXPECT_TRUE(finish_called.load());
+
+    EXPECT_EQ(check_in, worker_p.get());
+    EXPECT_EQ(check_out, worker_p.get());
 }
 
 TEST(xworker_tests, pool_get_max_tasks)
@@ -567,28 +603,28 @@ TEST(xworker_tests, pool_execute_sync)
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 117);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 117);
         }
     });
-    descs.push_back("xworker::ExecuteSync(pool) x1");
+    descs.push_back("xworker::ExecuteSyncVoid(pool) x1");
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 120);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 120);
         }
     });
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 121);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 121);
         }
     });
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 122);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 122);
         }
     });
-    descs.push_back("xworker::ExecuteSync(pool) x3");
+    descs.push_back("xworker::ExecuteSyncVoid(pool) x3");
 
     uint32_t msec_for_test = 1'000;
     std::this_thread::sleep_for(std::chrono::milliseconds(msec_for_test));
@@ -596,7 +632,7 @@ TEST(xworker_tests, pool_execute_sync)
     stop = true;
     std::for_each(threads.begin(), threads.end(), [](auto& th) { th.join(); });
 
-    // xworker::ExecuteSync(
+    // xworker::ExecuteSyncVoid(
     //     pool_p.get(),
     //     [&]() { do_something(counters[0]); },
     //     {},
@@ -635,28 +671,28 @@ TEST(xworker_tests, pool_execute_sync_lack_workers)
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 117);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 117);
         }
     });
-    descs.push_back("xworker::ExecuteSync(pool) x1");
+    descs.push_back("xworker::ExecuteSyncVoid(pool) x1");
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 120);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 120);
         }
     });
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 121);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 121);
         }
     });
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 122);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 122);
         }
     });
-    descs.push_back("xworker::ExecuteSync(pool) x3");
+    descs.push_back("xworker::ExecuteSyncVoid(pool) x3");
 
     uint32_t msec_for_test = 1'000;
     std::this_thread::sleep_for(std::chrono::milliseconds(msec_for_test));
@@ -664,7 +700,7 @@ TEST(xworker_tests, pool_execute_sync_lack_workers)
     stop = true;
     std::for_each(threads.begin(), threads.end(), [](auto& th) { th.join(); });
 
-    // xworker::ExecuteSync(
+    // xworker::ExecuteSyncVoid(
     //     pool_p.get(),
     //     [&]() { do_something(counters[0]); },
     //     {},
@@ -725,41 +761,41 @@ TEST(xworker_tests, performanace_compare_sync)
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(worker1_p.get(), [&]() { do_something(counters[cnt]); });
+            xworker::ExecuteSyncVoid(worker1_p.get(), [&]() { do_something(counters[cnt]); });
         }
     });
-    descs.push_back("xworker::ExecuteSync(worker)");
+    descs.push_back("xworker::ExecuteSyncVoid(worker)");
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 117);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 117);
         }
     });
-    descs.push_back("xworker::ExecuteSync(pool)");
+    descs.push_back("xworker::ExecuteSyncVoid(pool)");
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(worker2_p.get(), [&]() { do_something(counters[cnt]); });
+            xworker::ExecuteSyncVoid(worker2_p.get(), [&]() { do_something(counters[cnt]); });
         }
     });
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(worker2_p.get(), [&]() { do_something(counters[cnt]); });
+            xworker::ExecuteSyncVoid(worker2_p.get(), [&]() { do_something(counters[cnt]); });
         }
     });
-    descs.push_back("xworker::ExecuteSync(worker) x2");
+    descs.push_back("xworker::ExecuteSyncVoid(worker) x2");
 
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 120);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 120);
         }
     });
     threads.emplace_back([&, cnt = descs.size()]() {
         while (!stop) {
-            xworker::ExecuteSync(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 121);
+            xworker::ExecuteSyncVoid(pool_p.get(), [&]() { do_something(counters[cnt]); }, {}, 121);
         }
     });
-    descs.push_back("xworker::ExecuteSync(pool) x2");
+    descs.push_back("xworker::ExecuteSyncVoid(pool) x2");
 
     uint32_t msec_for_test = 3'000;
     std::this_thread::sleep_for(std::chrono::milliseconds(msec_for_test));
@@ -800,43 +836,43 @@ TEST(xworker_tests, performanace_compare_async)
     descs.push_back("direct");
 
     std::vector<std::future<xbase::IWorker::FinishType>> tasks_futures;
-    tasks_futures.push_back(xworker::ExecuteAsync(worker1_p.get(), [&, cnt = descs.size()]() {
+    tasks_futures.push_back(xworker::ExecuteAsyncVoid(worker1_p.get(), [&, cnt = descs.size()]() {
         do_something(counters[cnt]);
         return stop ? xbase::IWorker::RepeatType::kDoNotRepeat : xbase::IWorker::RepeatType::kRepeatUntilCancel;
     }));
-    EXPECT_TRUE(tasks_futures.back().valid()) << "xworker::ExecuteAsync(1) FAILED";
-    descs.push_back("xworker::ExecuteAsync(worker)");
+    EXPECT_TRUE(tasks_futures.back().valid()) << "xworker::ExecuteAsyncVoid(1) FAILED";
+    descs.push_back("xworker::ExecuteAsyncVoid(worker)");
 
-    tasks_futures.push_back(xworker::ExecuteAsync(pool_p.get(), [&, cnt = descs.size()]() {
+    tasks_futures.push_back(xworker::ExecuteAsyncVoid(pool_p.get(), [&, cnt = descs.size()]() {
         do_something(counters[cnt]);
         return stop ? xbase::IWorker::RepeatType::kDoNotRepeat : xbase::IWorker::RepeatType::kRepeatUntilCancel;
     }));
-    EXPECT_TRUE(tasks_futures.back().valid()) << "xworker::ExecuteAsync(1) FAILED";
-    descs.push_back("xworker::ExecuteAsync(pool)");
+    EXPECT_TRUE(tasks_futures.back().valid()) << "xworker::ExecuteAsyncVoid(1) FAILED";
+    descs.push_back("xworker::ExecuteAsyncVoid(pool)");
 
-    tasks_futures.push_back(xworker::ExecuteAsync(worker2_p.get(), [&, cnt = descs.size()]() {
+    tasks_futures.push_back(xworker::ExecuteAsyncVoid(worker2_p.get(), [&, cnt = descs.size()]() {
         do_something(counters[cnt]);
         return stop ? xbase::IWorker::RepeatType::kDoNotRepeat : xbase::IWorker::RepeatType::kRepeatUntilCancel;
     }));
     EXPECT_TRUE(tasks_futures.back().valid()) << "GlobalPool()->TaskPut(1) FAILED";
-    tasks_futures.push_back(xworker::ExecuteAsync(worker2_p.get(), [&, cnt = descs.size()]() {
+    tasks_futures.push_back(xworker::ExecuteAsyncVoid(worker2_p.get(), [&, cnt = descs.size()]() {
         do_something(counters[cnt]);
         return stop ? xbase::IWorker::RepeatType::kDoNotRepeat : xbase::IWorker::RepeatType::kRepeatUntilCancel;
     }));
     EXPECT_TRUE(tasks_futures.back().valid()) << "GlobalPool()->TaskPut(2) FAILED";
-    descs.push_back("xworker::ExecuteAsync(worker) x2 (switch tasks)");
+    descs.push_back("xworker::ExecuteAsyncVoid(worker) x2 (switch tasks)");
 
-    tasks_futures.push_back(xworker::ExecuteAsync(pool_p.get(), [&, cnt = descs.size()]() {
+    tasks_futures.push_back(xworker::ExecuteAsyncVoid(pool_p.get(), [&, cnt = descs.size()]() {
         do_something(counters[cnt]);
         return stop ? xbase::IWorker::RepeatType::kDoNotRepeat : xbase::IWorker::RepeatType::kRepeatUntilCancel;
     }));
     EXPECT_TRUE(tasks_futures.back().valid()) << "GlobalPool()->TaskPut(1) FAILED";
-    tasks_futures.push_back(xworker::ExecuteAsync(pool_p.get(), [&, cnt = descs.size()]() {
+    tasks_futures.push_back(xworker::ExecuteAsyncVoid(pool_p.get(), [&, cnt = descs.size()]() {
         do_something(counters[cnt]);
         return stop ? xbase::IWorker::RepeatType::kDoNotRepeat : xbase::IWorker::RepeatType::kRepeatUntilCancel;
     }));
     EXPECT_TRUE(tasks_futures.back().valid()) << "GlobalPool()->TaskPut(2) FAILED";
-    descs.push_back("xworker::ExecuteAsync(pool) x2");
+    descs.push_back("xworker::ExecuteAsyncVoid(pool) x2");
 
     uint32_t msec_for_test = 3'000;
     std::this_thread::sleep_for(std::chrono::milliseconds(msec_for_test));
