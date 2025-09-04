@@ -326,7 +326,7 @@ namespace xclock {
      *          Wait ->    {The real wait time, the expected wait time, kNoVal if event signaled}
      */
     std::pair<xbase::Time64, xbase::Time64> WaitClockTime(const xbase::IClock* _clock_p,
-                                                          const xbase::Time64  _wait_untill,
+                                                          const xbase::Time64  _wait_until,
                                                           const xbase::Time64  _skip_wait_if_less = 0);
 
     /**
@@ -338,7 +338,7 @@ namespace xclock {
     std::pair<xbase::Time64, xbase::Time64> EventWaitClockTime(std::condition_variable&      _cv_event,
                                                                std::unique_lock<std::mutex>* _lck_p,
                                                                const xbase::IClock*          _clock_p,
-                                                               const xbase::Time64           _wait_untill,
+                                                               const xbase::Time64           _wait_until,
                                                                const xbase::Time64           _skip_wait_if_less = 0);
 
 } // namespace xclock

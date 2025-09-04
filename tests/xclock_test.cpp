@@ -396,8 +396,11 @@ TEST(xclock_tests, wait_clock)
     int  msec_wait = 1500;
     auto wait_till = clock_p->Time() + time64::FromMsec(msec_wait);
 
+    std::cout << "wait_clock BEGIN Clock:" << time64::ToMsec(clock_p->Time()) << " till:" << time64::ToMsec(wait_till) << std::endl;
     auto [real, expt] = xclock::WaitClockTime(clock_p.get(), wait_till);
-    std::cout << "Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
+    std::cout << "wait_clock DONE Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
+    std::cout << "wait_clock END Clock:" << time64::ToMsec(clock_p->Time()) << " till:" << time64::ToMsec(wait_till)
+              << std::endl;
     EXPECT_NE(expt, time64::kNoVal) << "LOOK like Event signalid BUT DOES NOT";
     EXPECT_GE(std::abs(time64::ToMsec(real - expt)), 0.00001);
     EXPECT_LE(std::abs(time64::ToMsec(real - expt)), 30.0);
@@ -413,24 +416,28 @@ TEST(xclock_tests, no_wait_clock)
     auto wait_till = clock_p->Time() + time64::FromMsec(msec_wait);
 
     auto [real, expt] = xclock::WaitClockTime(clock_p.get(), wait_till);
-    std::cout << "Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
+    std::cout << "no_wait_clock Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
     EXPECT_EQ(real, 0);
     EXPECT_EQ(expt, 0);
 
     std::condition_variable cv_fake;
     std::tie(real, expt) = xclock::EventWaitClockTime(cv_fake, nullptr, clock_p.get(), wait_till);
-    std::cout << "Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
+    std::cout << "no_wait_clock Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
     EXPECT_EQ(real, 0);
     EXPECT_EQ(expt, 0);
 }
 
-TEST(xclock_tests, Manual_wait_global_cancel)
+TEST(Manual_xclock_tests, wait_global_cancel)
 {
+    // WARNING !!! Not safe to run this test on CI
     std::thread wait_thread([]() {
         auto clock_p   = xclock::Create();
         auto wait_till = clock_p->Time() + time64::FromSec(100.0);
 
         auto [real, expt] = xclock::WaitClockTime(clock_p.get(), wait_till);
+        if (expt == time64::kNoVal)
+            std::cout << "xclock::WaitClockTime STOPPED" << std::endl;
+
         std::cout << "Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
     });
 
@@ -455,11 +462,11 @@ TEST(xclock_tests, wait_with_cancel)
 
     std::thread wait_thread([&]() {
         std::tie(real, expt) = xclock::EventWaitClockTime(cv_event, nullptr, clock_p.get(), wait_till);
-        std::cout << "Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
+        std::cout << "wait_with_cancel Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(msec_wait));
-    std::cout << "Notify" << std::endl;
+    std::cout << "wait_with_cancel Notify" << std::endl;
     cv_event.notify_all();
     wait_thread.join();
 
@@ -483,14 +490,14 @@ TEST(xclock_tests, wait_with_cancel_mtx)
         std::unique_lock lck_inner(mtx);
         cv_event.notify_all();
         std::tie(real, expt) = xclock::EventWaitClockTime(cv_event, &lck_inner, clock_p.get(), wait_till);
-        std::cout << "Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
+        std::cout << "wait_with_cancel_mtx Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
     });
 
     // Wait till thread started (unlock mutex while wait)
     cv_event.wait(lck_outer);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(msec_wait));
-    std::cout << "Notify" << std::endl;
+    std::cout << "wait_with_cancel_mtx Notify" << std::endl;
     cv_event.notify_all();
     lck_outer.unlock();
 

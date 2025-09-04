@@ -22,4 +22,16 @@ static constexpr TClamp Clamp(const TNumber _number)
                                                                                 static_cast<TClamp>(_number);
 }
 
+template <typename TInteger>
+static constexpr TInteger AlignUp(const TInteger _number, const TInteger _align)
+{
+    return (_number + _align - 1) / _align * _align;
+}
+
+template <typename TInteger>
+static constexpr TInteger AlignDown(const TInteger _number, const TInteger _align)
+{
+    return _number / _align * _align;
+}
+
 } // namespace xsdk::xbase

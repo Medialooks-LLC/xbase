@@ -423,9 +423,33 @@ TEST(xdata_tests, interfaces_test)
     ASSERT_TRUE(shared_vec[1]);
     EXPECT_EQ(shared_vec[0]->name, "MyTestStruct");
     EXPECT_EQ(shared_vec[1]->name, "MyTestStruct");
-    
+
     auto empty_vec = xdata::GetSharedVec<MyTestStruct4>(data_p.get());
     EXPECT_TRUE(empty_vec.empty());
+}
+
+TEST(xdata_tests, interfaces_test_const)
+{
+    auto data_p1 = xdata::Create();
+    auto data_p2 = xdata::Create();
+
+    std::shared_ptr<const std::string> str_sp_c = std::make_shared<std::string>("1234");
+    xdata::SetShared(data_p1.get(), 0, str_sp_c);
+
+    auto check_ok = xdata::GetSharedConst<std::string>(data_p1.get());
+    EXPECT_TRUE(check_ok);
+
+    auto check_fail = xdata::GetShared<std::string>(data_p1.get());
+    EXPECT_FALSE(check_fail);
+
+    auto str_sp = std::make_shared<std::string>("567");
+    xdata::SetShared(data_p2.get(), 0, str_sp);
+
+    check_ok = xdata::GetSharedConst<std::string>(data_p2.get());
+    EXPECT_TRUE(check_ok);
+
+    auto check_ok2 = xdata::GetShared<std::string>(data_p2.get());
+    EXPECT_TRUE(check_ok2);
 }
 
 TEST(xdata_tests, get_vector_test)
@@ -480,7 +504,6 @@ TEST(xdata_tests, get_wrong_index)
         EXPECT_FALSE(holder_2_sp);
     }
 }
-
 
 TEST(xdata_tests, interfaces_test_fails)
 {

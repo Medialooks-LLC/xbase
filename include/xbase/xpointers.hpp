@@ -44,6 +44,18 @@ public:
     using WPtrC = std::weak_ptr<const TDerived>;
 };
 
+template <typename TData>
+std::shared_ptr<TData> ToShared(TData&& _data)
+{
+    return std::make_shared<std::decay_t<TData>>(std::forward<TData>(_data));
+}
+
+template <typename TData>
+std::shared_ptr<TData> ToShared(std::unique_ptr<TData>&& _unique_p)
+{
+    return std::shared_ptr<TData>(std::move(_unique_p));
+}
+
 // For derived class
 /**
  * @brief Macro for derived classes to use the smart pointers defined in PtrBase

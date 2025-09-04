@@ -79,7 +79,7 @@ public:
     PoolWorkersImpl(size_t                              _min_workers,
                     size_t                              _max_workers,
                     const uint32_t                      _idle_timeout,
-                    const std::optional<size_t>&        _max_tasks_count,
+                    const std::optional<size_t>        _max_tasks_count,
                     xworker::OnThreadStartedFunction&&  _on_started,
                     xworker::OnThreadFinishedFunction&& _on_finished,
                     bool                                _fast_on_idle);
@@ -88,8 +88,8 @@ public:
 
 public:
     virtual IWorker::TaskUid TaskPut(TaskFunction&&                            _task_pf,
-                                     std::optional<TaskUid>&&                  _task_uid,
-                                     std::optional<State>&&                    _required_state_mask,
+                                     const std::optional<TaskUid>                  _task_uid,
+                                     const std::optional<State>                    _required_state_mask,
                                      std::optional<std::promise<FinishType>>&& _task_finish_promise) override;
 
     virtual std::pair<size_t, size_t> TasksCount() const override;
@@ -117,10 +117,10 @@ private:
 
     void OnIdle_(IWorker* _idle_worker_p);
 
-    std::pair<size_t, IWorker*> AddWorker_(const std::optional<uint32_t>& _idle_timeout_msec);
+    std::pair<size_t, IWorker*> AddWorker_(const std::optional<uint32_t> _idle_timeout_msec);
 
     IWorker::TaskUid ExecuteTask_(TaskFunction&&                            _task_pf,
-                                  std::optional<TaskUid>&&                  _task_uid,
+                                  const std::optional<TaskUid>                  _task_uid,
                                   std::optional<std::promise<FinishType>>&& _task_finish_promise);
 };
 

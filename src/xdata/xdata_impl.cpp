@@ -4,6 +4,9 @@ namespace xsdk {
 
 IData::UPtr xdata::Create() { return IData::UPtr {new impl::XDataImpl()}; }
 
+IData::UPtr xdata::CreateOrClone(const IData* _base) { return _base ? _base->Clone() : xdata::Create(); }
+
+
 namespace impl {
 
     XDataImpl::XDataImpl(std::map<uint64_t, data_entry>&& _data_map)

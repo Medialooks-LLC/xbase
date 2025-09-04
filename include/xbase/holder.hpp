@@ -95,6 +95,17 @@ public:
             data_p_ = std::make_unique<TData>(_copy.Data());
     }
     /**
+     * @brief Copy constructor from const HolderP with convertable to TData type.
+     * This constructor copies the data and the holder from a const HolderP.
+     */
+    template <typename TConvertFrom>
+    HolderP(const HolderP<TConvertFrom>& _copy) : holder_(_copy.Holder())
+    {
+        static_assert(std::is_convertible_v<TConvertFrom, TData>);
+        if (_copy.DataPtr())
+            data_p_ = std::make_unique<TData>(_copy.Data());
+    }
+    /**
      * @brief Constructor from std::pair.
      * This constructor initializes the data and the holder with the data and
      * the holder from a std::pair.
@@ -138,6 +149,15 @@ public:
         holder_ = _copy.holder_;
         return *this;
     }
+    template <typename TConvertFrom>
+    HolderP& operator=(const HolderP<TConvertFrom>& _copy)
+    {
+        static_assert(std::is_convertible_v<TConvertFrom, TData>);
+        if (_copy.DataPtr())
+            data_p_ = std::make_unique<TData>(_copy.Data());
+        holder_ = _copy.Holder();
+        return *this;
+    }
     /**
      * @brief Check is holder an empty
      */
@@ -175,6 +195,12 @@ public:
      * @return true if the data of the wrapper is equal to the TData, false otherwise.
      */
     bool operator==(const TData& val) const { return data_p_ && *data_p_ == val; }
+
+    /**
+     * @brief This method returns holder 
+     * @return The copy of holder.
+     */
+    std::any Holder() const { return holder_; }
 
     /**
      * @brief Detach method.

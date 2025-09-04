@@ -26,7 +26,7 @@ TEST(xscheduler_test, non_exists_scheduler)
 
 TEST(xscheduler_test, non_exists_pf)
 {
-    auto scheduler_p   = xscheduler::CreateScheduler(nullptr, xworker::CreateWorker());
+    auto scheduler_p   = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
     auto [task_uid,
           task_future] = xscheduler::ScheduleTask<std::pair<std::string, double>>(scheduler_p.get(), 5, nullptr);
 
@@ -36,7 +36,7 @@ TEST(xscheduler_test, non_exists_pf)
 
 TEST(xscheduler_test, schedule_non_exists_pf)
 {
-    auto scheduler_p = xscheduler::CreateScheduler(nullptr, xworker::CreateWorker());
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
     auto task_uid    = scheduler_p->ScheduleTask(time64::kDay, nullptr);
 
     EXPECT_EQ(xbase::kInvalidUid, task_uid) << "Task uid should be invalid: " << task_uid;
@@ -45,7 +45,7 @@ TEST(xscheduler_test, schedule_non_exists_pf)
 
 TEST(xscheduler_test, task_status_of_invalid_uid)
 {
-    auto scheduler_p = xscheduler::CreateScheduler(nullptr, xworker::CreateWorker());
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
 
     auto res = scheduler_p->TaskStatus(xbase::kInvalidUid);
     EXPECT_EQ(xbase::IScheduler::Status::kInvalidUid, res.first) << "Status should be invalid uid.";
@@ -59,7 +59,7 @@ TEST(xscheduler_test, task_status_of_invalid_uid)
 
 TEST(xscheduler_test, task_cancel_of_invalid_uid)
 {
-    auto scheduler_p = xscheduler::CreateScheduler(nullptr, xworker::CreateWorker());
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
 
     auto res = scheduler_p->CancelTask(xbase::kInvalidUid);
     EXPECT_EQ(xbase::IScheduler::TaskRes::kInvalidUid, res.first) << "Task result should be invalid uid.";
@@ -68,7 +68,7 @@ TEST(xscheduler_test, task_cancel_of_invalid_uid)
 
 TEST(xscheduler_test, task_cancel_without_worker)
 {
-    auto scheduler_p = xscheduler::CreateScheduler(nullptr, nullptr);
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, nullptr);
 
     auto task_uid = scheduler_p->ScheduleTask(time64::kDay, [&](const xbase::IScheduler::TaskInfo* _task_info) {
         return time64::kSecond;
@@ -80,7 +80,7 @@ TEST(xscheduler_test, task_cancel_without_worker)
 
 TEST(xscheduler_test, task_reschedule_of_invalid_uid)
 {
-    auto scheduler_p = xscheduler::CreateScheduler(nullptr, xworker::CreateWorker());
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
 
     auto res = scheduler_p->RescheduleTask(xbase::kInvalidUid, time64::kNoVal);
     EXPECT_EQ(xbase::IScheduler::TaskRes::kInvalidUid, res) << "Task result should be invalid uid.";
@@ -88,7 +88,7 @@ TEST(xscheduler_test, task_reschedule_of_invalid_uid)
 
 TEST(xscheduler_test, task_reschedule_of_not_exists_uid)
 {
-    auto scheduler_p = xscheduler::CreateScheduler(nullptr, xworker::CreateWorker());
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
 
     auto res = scheduler_p->RescheduleTask(123123, time64::kNoVal);
     EXPECT_EQ(xbase::IScheduler::TaskRes::kNotFound, res) << "Task result should not be found.";
@@ -96,7 +96,7 @@ TEST(xscheduler_test, task_reschedule_of_not_exists_uid)
 
 TEST(xscheduler_test, task_schedule_many_tasks)
 {
-    auto scheduler_p = xscheduler::CreateScheduler(xclock::SysClock(true), xworker::CreateWorker({}, 3000, 1));
+    auto scheduler_p = xscheduler::CreateScheduler(xclock::SysClock(true), false, xworker::CreateWorker({}, 3000, 1));
 
     size_t                   num_threads = 10;
     std::vector<std::thread> threads;
@@ -123,7 +123,7 @@ TEST(xscheduler_test, basic_task)
 {
     std::vector<xbase::IWorker::SPtr> workers = {nullptr, xworker::CreateWorker(), xworker::CreatePool()};
     for (const auto& worker_p : workers) {
-        auto scheduler_p = xscheduler::CreateScheduler(nullptr, worker_p);
+        auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
 
         const std::string expected_res = "check_string";
         double            msec_delay   = 300.0;
@@ -151,7 +151,7 @@ TEST(xscheduler_test, two_task)
     std::vector<xbase::IWorker::SPtr> workers = {nullptr, xworker::CreateWorker(), xworker::CreatePool()};
     for (const auto& worker_p : workers) {
 
-        auto scheduler_p = xscheduler::CreateScheduler(nullptr, worker_p);
+        auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
 
         const std::string expected_res = "check_string";
         double            msec_delay   = 500.0;
@@ -201,7 +201,7 @@ TEST(xscheduler_test, two_task_wait)
     std::vector<xbase::IWorker::SPtr> workers = {/*nullptr, xworker::CreateWorker(),*/ xworker::CreatePool()};
     for (const auto& worker_p : workers) {
 
-        auto scheduler_p = xscheduler::CreateScheduler(nullptr, worker_p);
+        auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
 
         const std::string expected_res = "check_string";
         int               msec_delay   = 500;
@@ -268,7 +268,7 @@ TEST(xscheduler_test, two_task_wait)
 TEST(xscheduler_test, reshedule_task_past)
 {
     xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
-    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, worker_p);
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
 
     const std::string expected_res = "check_string";
     double            msec_delay   = 1000.0;
@@ -298,7 +298,7 @@ TEST(xscheduler_test, reshedule_task_past)
 TEST(xscheduler_test, reshedule_task_future)
 {
     xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
-    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, worker_p);
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
 
     const std::string expected_res = "check_string";
     double            msec_delay   = 100.0;
@@ -327,46 +327,88 @@ TEST(xscheduler_test, reshedule_task_future)
 
 TEST(xscheduler_test, task_cancel_immediate_repeat)
 {
-    std::vector<xbase::IWorker::SPtr> workers = {nullptr, xworker::CreateWorker(), xworker::CreatePool()};
-    for (const auto& worker_p : workers) {
-        auto scheduler_p = xscheduler::CreateScheduler(nullptr, worker_p);
+    std::vector<std::pair<bool, xbase::IWorker::SPtr>> default_workers = {{false, nullptr},
+                                                                          {true, nullptr},
+                                                                          {false, xworker::CreateWorker()},
+                                                                          {false, xworker::CreatePool()}};
+    for (const auto& [static_pool, default_worker] : default_workers) {
 
-        std::promise<void>   started_promise;
-        auto                 started  = started_promise.get_future();
-        std::atomic_uint64_t counter  = {0};
-        auto                 task_uid = scheduler_p->ScheduleTask(
-            time64::kPast,
-            [&](const auto* _task_info_p) {
-                if (counter.fetch_add(1) == 1)
-                    started_promise.set_value();
-                return time64::kPast;
-            },
-            {},
-            worker_p ? nullptr : xworker::CreateWorker());
+        std::vector<xbase::IWorker::SPtr> task_workers = {nullptr, xworker::CreateWorker()};
+        for (const auto& task_worker_p : task_workers) {
 
-        ASSERT_NE(task_uid, xbase::kInvalidUid) << "scheduler_p->ScheduleTask() FAILED";
+            // No task & disabled default worker
+            bool no_workers = !task_worker_p && !static_pool && !default_worker;
 
-        // Wait for start
-        ASSERT_TRUE(started.valid());
-        started.wait();
+            auto scheduler_p = xscheduler::CreateScheduler(nullptr, static_pool, default_worker);
 
-        auto [status, info] = scheduler_p->TaskStatus(task_uid);
-        EXPECT_EQ(status, xbase::IScheduler::Status::kExecutingNow) << "Task should be executed at this moment";
-        EXPECT_EQ(info.scheduling_counter, 0) << "wrong TaskInfo::scheduling_counter";
+            std::promise<void>   started_promise;
+            auto                 started  = started_promise.get_future();
+            std::atomic_uint64_t counter  = {0};
+            auto                 task_uid = scheduler_p->ScheduleTask(
+                time64::kPast,
+                [&](const auto* _task_info_p) {
+                    if (counter.fetch_add(1) == 1)
+                        started_promise.set_value();
+                    return time64::kPast;
+                },
+                {},
+                task_worker_p);
 
-        auto [res, cancel_future] = scheduler_p->CancelTask(task_uid);
-        EXPECT_EQ(res, xbase::IScheduler::TaskRes::kExecutingNow) << "Task should be executed at this moment";
-        auto check_counter_0 = counter.load();
-        ASSERT_TRUE(cancel_future.valid());
-        cancel_future.wait();
-        auto check_counter = counter.load();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        EXPECT_EQ(check_counter, counter.load()) << "Task not canceled correctly";
-        EXPECT_GE(check_counter, check_counter_0) << "Wrong counters";
+            ASSERT_NE(task_uid, xbase::kInvalidUid) << "scheduler_p->ScheduleTask() FAILED";
 
-        // Check what task is gone
-        auto res2 = scheduler_p->CancelTask(task_uid).first;
-        EXPECT_EQ(res2, xbase::IScheduler::TaskRes::kNotFound) << "Task NOT REMOVED after execution";
+            // Wait for start
+            ASSERT_TRUE(started.valid());
+            started.wait();
+
+            auto [status, info] = scheduler_p->TaskStatus(task_uid);
+           
+            if (no_workers) {
+                EXPECT_TRUE(status == xbase::IScheduler::Status::kExecutingNow ||
+                            status == xbase::IScheduler::Status::kScheduled);
+
+                EXPECT_GT(info.scheduling_counter, 0)
+                    << "wrong TaskInfo::scheduling_counter (for no workers scheduling_counter should be non zero)";
+            }
+            else{
+                EXPECT_EQ(status, xbase::IScheduler::Status::kExecutingNow) << "Task should be executed at this moment";
+                EXPECT_EQ(info.scheduling_counter, 0)
+                    << "wrong TaskInfo::scheduling_counter (for immediate repeated task should be zero)";
+            }
+
+            auto [res, cancel_future] = scheduler_p->CancelTask(task_uid);
+            if (no_workers) {
+                auto check_counter_0 = counter.load();
+                // For task w/o workers wait cancel future is not supported 
+                ASSERT_FALSE(cancel_future.valid());
+
+                EXPECT_TRUE(res == xbase::IScheduler::TaskRes::kExecutingNow ||
+                            res == xbase::IScheduler::TaskRes::kOk)
+                    << "Task should be executed at this moment or in wait queue";
+                
+                if (res == xbase::IScheduler::TaskRes::kExecutingNow)
+                {
+                    // Sleep a bit 
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    // No more then one cicle after cancel
+                    EXPECT_GE(check_counter_0 + 1, counter.load()) << "Task not canceled correctly";
+                }
+            }
+            else
+            {
+                EXPECT_EQ(res, xbase::IScheduler::TaskRes::kExecutingNow) << "Task should be executed at this moment";
+                auto check_counter_0 = counter.load();
+
+                ASSERT_TRUE(cancel_future.valid());
+                cancel_future.wait();
+                auto check_counter = counter.load();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                EXPECT_EQ(check_counter, counter.load()) << "Task not canceled correctly";
+                EXPECT_GE(check_counter, check_counter_0) << "Wrong counters";
+            }
+            // Check what task is gone
+            auto res2 = scheduler_p->CancelTask(task_uid).first;
+            EXPECT_EQ(res2, xbase::IScheduler::TaskRes::kNotFound) << "Task NOT REMOVED after execution";
+        }
     }
 }
 
@@ -377,7 +419,7 @@ TEST(xscheduler_test, task_cancel_interval_repeats)
 
     std::vector<xbase::IWorker::SPtr> workers = {nullptr, xworker::CreateWorker(), xworker::CreatePool()};
     for (const auto& worker_p : workers) {
-        auto scheduler_p = xscheduler::CreateScheduler(xclock::Create(xclock::SteadySyncGen(true), 0).get(), worker_p);
+        auto scheduler_p = xscheduler::CreateScheduler(xclock::Create(xclock::SteadySyncGen(true), 0).get(), false, worker_p);
 
         std::promise<void>   started_promise;
         auto                 started  = started_promise.get_future();

@@ -36,7 +36,8 @@ namespace xbase {
             IWorker::TaskUid task_uid = xbase::kInvalidUid;
             /// @brief The scheduled time for the task
             xbase::Time64 scheduled_time = time64::kNoVal;
-            /// @brief Counter for tracking the number of times a task is scheduled.
+            /// @brief Counter for tracking the number of times a task is scheduled, for immediate repeated task do not
+            /// increased (private or default workers required for immediate repeat)
             uint64_t scheduling_counter = 0;
             /// @brief Counter for tracking the number of times a worker is busy when task was re-added.
             uint64_t worker_busy_counter = 0;
@@ -125,11 +126,11 @@ namespace xbase {
 
         // 2Think: Rename to RemoveTask() use return std::optional<TaskInfo> + future ?
         /**
-         * @brief Cancel a task and wait for its completion (if applicable)
+         * @brief Cancel a task and return wait future for its completion (if applicable)
          * @param _task_id The UID of the task to be cancelled
          * @return A pair containing the result of the cancellation operation and a future to wait for the task
          * completion
-         * @warning This function is not applicable for tasks without workers
+         * @warning Wait future is not applicable for tasks without workers
          */
         virtual std::pair<TaskRes, std::future<IWorker::FinishType>> CancelTask(const IWorker::TaskUid _task_id) = 0;
     };
@@ -138,14 +139,26 @@ namespace xbase {
 namespace xscheduler {
     using namespace xbase;
 
+    /// @brief default scheduler (use default workers pool)
+    xbase::IScheduler* StaticScheduler();
+    /// @brief return _scheduler or static scheduler (never null)
+    inline xbase::IScheduler* DefaultScheduler(xbase::IScheduler* const _scheduler_p)
+    {
+        return _scheduler_p ? _scheduler_p : StaticScheduler();
+    }
+
     /**
      * @brief Creates a new IScheduler instance with the given clock and default worker.
      * @param _clock_p The clock to be used by the scheduler.
-     * @param _default_worker Pointer to the default worker to be used by tasks.
+     * @param _use_static_workers_pool - Use static workers pool: xworker::StaticPool() for execute scheduled tasks
+     * @param _default_worker Pointer to the default worker to be used by tasks (if _use_static_workers_pool is true,
+     * ignored, shiould be nullptr)
      * @return An IScheduler UPtr that owns the newly created scheduler instance.
      */
-    IScheduler::UPtr CreateScheduler(const xbase::IClock* _clock_p, const IWorker::SPtr& _default_worker);
-
+    IScheduler::UPtr CreateScheduler(const xbase::IClock* _clock_p,
+                                     const bool           _use_static_workers_pool = true,
+                                     const IWorker::SPtr& _default_worker          = {});
+ 
     /**
      * @brief Schedules a new task with a given delay and function.
      * @tparam TResult The result type of the scheduled task.

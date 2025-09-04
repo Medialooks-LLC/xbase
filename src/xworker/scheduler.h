@@ -39,8 +39,8 @@ class SchedulerImpl final: public IScheduler {
         IWorker::TaskUid     TaskId() const { return execution_data_.task_info.task_uid; }
         xbase::Time64        ScheduledTime() const { return execution_data_.task_info.scheduled_time; }
         IScheduler::TaskInfo TaskInfo() const { return execution_data_.task_info; };
-        const IWorker::SPtr& Worker(const IWorker::SPtr& _default_worker);
-        ExecutionData        ForExecution(const IWorker::SPtr& _default_worker, const IClock* _clock_p) const;
+        const IWorker::SPtr& Worker() const { return execution_data_.task_worker; }
+        ExecutionData        ForExecution(const IClock* _clock_p) const;
         uint64_t             OnExecutionDone() { return ++execution_data_.task_info.scheduling_counter; }
         uint64_t             OnWorkerBusy() { return ++execution_data_.task_info.worker_busy_counter; }
     };
@@ -60,13 +60,16 @@ class SchedulerImpl final: public IScheduler {
     std::atomic<bool>          stopped_ = {false};
     const xbase::IClock::SPtrC clock_p_;
 
-    IWorker::SPtr default_worker_;
+    const bool          use_static_workers_pool_;
+    const IWorker::SPtr default_worker_;
 
 public:
     static constexpr xbase::Time64 kAdvance64           = 500 * time64::kMisec;
     static constexpr xbase::Time64 kRepeatForPoolBusy64 = 10 * time64::kMsec;
 
-    explicit SchedulerImpl(const xbase::IClock* _clock_p, const IWorker::SPtr& _default_worker = nullptr);
+    explicit SchedulerImpl(const xbase::IClock* _clock_p,
+                           const bool           _use_static_workers_pool,
+                           const IWorker::SPtr& _default_worker);
     virtual ~SchedulerImpl() { OnDestroy_(); }
 
 public:
@@ -81,6 +84,7 @@ public:
 
 private:
     static std::optional<xbase::Time64> Execute_(const ExecutionData& _ed) { return _ed.task_pf(&_ed.task_info); }
+    IWorker*                            TaskWorker_(const IWorker::SPtr& _task_worker);
 
     SheduledMap::node_type ExtractTask_(const IWorker::TaskUid _task_uid);
     IWorker::TaskUid       InsertTask_(const xbase::Time64 _scheduled_time, SchedulerTask::UPtr&& _task_p);
@@ -90,7 +94,7 @@ private:
     bool                   WorkerExecute_(ExecutionData&& _execution_data);
     bool                   ExecutionDone_(const uint64_t                      _task_uid,
                                           bool                                _is_worker_busy,
-                                          const std::optional<xbase::Time64>& _repeat_time);
+                                          const std::optional<xbase::Time64> _repeat_time);
 };
 
 } // namespace xsdk::xbase::impl

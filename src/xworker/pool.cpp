@@ -5,7 +5,7 @@ namespace xsdk {
 xbase::IWorker::UPtr xworker::CreatePool(const size_t                 _min_workers,
                                          const size_t                 _max_workers,
                                          const uint32_t               _idle_timeout_msec,
-                                         const std::optional<size_t>& _max_tasks_count,
+                                         const std::optional<size_t> _max_tasks_count,
                                          OnThreadStartedFunction&&    _on_started,
                                          OnThreadFinishedFunction&&   _on_finished)
 {
@@ -16,6 +16,14 @@ xbase::IWorker::UPtr xworker::CreatePool(const size_t                 _min_worke
                                                           std::move(_on_started),
                                                           std::move(_on_finished),
                                                           true);
+}
+
+xbase::IWorker* xworker::StaticPool()
+{
+    static xbase::IWorker::UPtr pool = xworker::CreatePool(xworker::kWorkersPoolMinSize,
+                                                           xworker::kWorkersPoolMaxSize,
+                                                           xworker::kWorkersPoolIdleTimeoutMsec);
+    return pool.get();
 }
 
 namespace xbase::impl {
@@ -48,7 +56,7 @@ namespace xbase::impl {
     PoolWorkersImpl::PoolWorkersImpl(size_t                              _min_workers,
                                      size_t                              _max_workers,
                                      const uint32_t                      _idle_timeout,
-                                     const std::optional<size_t>&        _max_tasks_count,
+                                     const std::optional<size_t>        _max_tasks_count,
                                      xworker::OnThreadStartedFunction&&  _on_started,
                                      xworker::OnThreadFinishedFunction&& _on_finished,
                                      bool                                _fast_on_idle)
@@ -67,8 +75,8 @@ namespace xbase::impl {
     }
 
     IWorker::TaskUid PoolWorkersImpl::TaskPut(TaskFunction&&                            _task_pf,
-                                              std::optional<TaskUid>&&                  _task_uid,
-                                              std::optional<State>&&                    _required_state_mask,
+                                              const std::optional<TaskUid>                  _task_uid,
+                                              const std::optional<State>                    _required_state_mask,
                                               std::optional<std::promise<FinishType>>&& _task_finish_promise)
     {
         assert(_task_uid.value_or(~xbase::kInvalidUid) != xbase::kInvalidUid);
@@ -304,7 +312,7 @@ namespace xbase::impl {
         //     tasks_prefer_workers_[task.task_uid].SetPreferedWorker(idx.value(), workers_[idx.value()]->ThreadId());
     }
 
-    std::pair<size_t, IWorker*> PoolWorkersImpl::AddWorker_(const std::optional<uint32_t>& _idle_timeout_msec)
+    std::pair<size_t, IWorker*> PoolWorkersImpl::AddWorker_(const std::optional<uint32_t> _idle_timeout_msec)
     {
         if (workers_.size() >= max_workers_)
             return {xbase::npos, nullptr};
@@ -320,7 +328,7 @@ namespace xbase::impl {
     }
 
     IWorker::TaskUid PoolWorkersImpl::ExecuteTask_(TaskFunction&&                            _task_pf,
-                                                   std::optional<TaskUid>&&                  _task_uid,
+                                                   const std::optional<TaskUid>                  _task_uid,
                                                    std::optional<std::promise<FinishType>>&& _task_finish_promise)
     {
         auto task_uid = _task_uid.value_or(xbase::kInvalidUid);

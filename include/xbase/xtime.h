@@ -98,13 +98,18 @@ namespace time64 {
     static constexpr Time64 kEpochSysToFileClock = -1 * kEpochShift;
     static constexpr Time64 kEpochFileToSysClock = kEpochShift;
 
-    constexpr double ToUnits(const Time64 _time_rt, const Time64 _unit)
+    // Convert time64 value to units in rational form 
+    constexpr double ToUnits(const Time64 _time_rt, const Time64 _unit_num_rt, const Time64 _unit_den_rt = 1)
     {
-        return _time_rt != kNoVal ? (double)_time_rt / _unit : std::numeric_limits<double>::min();
+        return _time_rt != kNoVal && _unit_num_rt != 0 ? ((double)_time_rt / _unit_num_rt * _unit_den_rt) :
+                                                      std::numeric_limits<double>::min();
     }
-    constexpr Time64 FromUnits(const double _time_dbl, const Time64 _unit)
+    // Convert units in rational form to time64
+    constexpr Time64 FromUnits(const double _time_dbl, const Time64 _unit_num_rt, const Time64 _unit_den_rt = 1)
     {
-        return _time_dbl != std::numeric_limits<double>::min() ? (Time64)(_time_dbl * _unit) : kNoVal;
+        return _time_dbl != std::numeric_limits<double>::min() && _unit_den_rt != 0 ?
+                   (Time64)(_time_dbl * _unit_num_rt / _unit_den_rt) :
+                   kNoVal;
     }
 
     constexpr double ToMsec(const Time64 _time_rt) { return ToUnits(_time_rt, kMsec); }
@@ -151,11 +156,11 @@ namespace time64 {
         const auto num_rounding = _align_type == AlignType::kUpper ? (num - den) :
                                   _align_type == AlignType::kRound ? num / 2 :
                                                                      den - 1;
-        const auto base_val = _val - _base;
-        const auto idx      = ((base_val * den) + num_rounding) / num;
+        const auto base_val     = _val - _base;
+        const auto idx          = ((base_val * den) + num_rounding) / num;
 #ifdef _DEBUG
         const auto aligned_val = BlockStart(idx, _block_len_num, _block_len_den);
-        assert(idx == ((aligned_val * den) + num_rounding) / num);
+        assert(idx < 0 || idx == ((aligned_val * den) + num_rounding) / num);
 #endif
         return {BlockStart(idx, _block_len_num, _block_len_den, _base), idx};
     }

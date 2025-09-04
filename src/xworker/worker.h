@@ -39,8 +39,8 @@ private:
 
 public:
     WorkerImpl(xworker::OnIdleFunction&&           _on_idle,
-               const std::optional<uint32_t>&      _idle_timeout_msec,
-               const std::optional<size_t>&        _max_tasks_count,
+               const std::optional<uint32_t>      _idle_timeout_msec,
+               const std::optional<size_t>        _max_tasks_count,
                xworker::OnThreadStartedFunction&&  _on_started,
                xworker::OnThreadFinishedFunction&& _on_finished);
 
@@ -48,8 +48,8 @@ public:
 
 public:
     virtual TaskUid TaskPut(TaskFunction&&                            _task_pf,
-                            std::optional<TaskUid>&&                  _task_uid,
-                            std::optional<State>&&                    _required_state_mask,
+                            const std::optional<TaskUid>                  _task_uid,
+                            const std::optional<State>                    _required_state_mask,
                             std::optional<std::promise<FinishType>>&& _task_finish_promise) override;
 
     virtual std::pair<size_t, size_t> TasksCount() const override;

@@ -105,6 +105,12 @@ namespace xdata {
     IData::UPtr Create(); // Implemetation in xdata_impl.cpp
 
     /**
+     * @brief Clone existing or creates an empty XData
+     * @return std::unique_ptr to the newly cloned or created XData
+     */
+    IData::UPtr CreateOrClone(const IData* _base); // Implemetation in xdata_impl.cpp
+
+    /**
      * @brief Helper function for wrapping a data instance in an std::any.
      * @tparam TData The data type to wrap.
      * @param _data Data instance to wrap.
@@ -213,6 +219,21 @@ namespace xdata {
                                  std::make_shared<Face>(std::forward<TFace>(_face)),
                                  std::make_shared<Holder>(std::forward<THolder>(_holder)),
                                  _idx);
+    }
+
+    /**
+     * @brief Resets data using the type of \c TFace via the provided interface.
+     * @tparam TFace The data type to reset the data for.
+     * @param _xdata_p Pointer to the IData instance. If null, returns false.
+     * @return true if reset succeeded, false otherwise.
+     */
+    template <typename TFace>
+    bool Reset(IData* _xdata_p)
+    {
+        if (!_xdata_p)
+            return false;
+
+        return _xdata_p->DataReset(xbase::TypeUid<std::decay_t<TFace>>());
     }
 
     /**
@@ -347,74 +368,161 @@ namespace xdata {
 
     /**
      * @brief Set a single data item with shared_ptr (for do not wrap twice)
-     * @tparam TFace The data type to set.
-     * @param _shared_ptr Shared pointer to the IData instance.
+     * @tparam TInterface The data type to set.
+     * @param _xdata_p Pointer to the IData instance.
+     * @param _shared_ptr Shared pointer to the TInterface instance.
      * @param _idx Index for the data to set.
      * @param _face Data instance to set.
      * @return Index of the added data if successful, otherwise -1.
      */
-    template <typename TFace>
-    size_t SetShared(IData* _xdata_p, const size_t _idx, const std::shared_ptr<TFace>& _shared_ptr)
+    template <typename TInterface>
+    size_t SetShared(IData* _xdata_p, const size_t _idx, const std::shared_ptr<TInterface>& _shared_ptr)
     {
         if (!_xdata_p)
             return -1;
 
-        using Face = std::decay_t<TFace>;
-        return _xdata_p->DataSet(xbase::TypeUid<Face>(), _shared_ptr, {}, _idx);
+        return _xdata_p->DataSet(xbase::TypeUid<TInterface>(), _shared_ptr, {}, _idx);
+    }
+
+    /**
+     * @brief Set a single data item with shared_ptr (for do not wrap twice)
+     * @tparam TInterface The data type to set.
+     * @param _xdata_p Pointer to the IData instance.
+     * @param _weak_ptr Weak pointer to the TInterface instance.
+     * @param _idx Index for the data to set.
+     * @param _face Data instance to set.
+     * @return Index of the added data if successful, otherwise -1.
+     */
+    template <typename TInterface>
+    size_t SetShared(IData* _xdata_p, const size_t _idx, const std::weak_ptr<TInterface>& _weak_ptr)
+    {
+        if (!_xdata_p)
+            return -1;
+
+        return _xdata_p->DataSet(xbase::TypeUid<TInterface>(), _weak_ptr, {}, _idx);
     }
 
     /**
      * @brief Set a single data item with weak_ptr (for do not wrap twice)
-     * @tparam TFace The data type to set.
-     * @param _shared_ptr Shared pointer to the IData instance.
+     * @tparam TInterface The data type to set.
+     * @param _xdata_p Pointer to the IData instance.
+     * @param _shared_ptr Shared pointer to the TInterface instance.
      * @param _idx Index for the data to set.
      * @param _face Data instance to set.
      * @return Index of the added data if successful, otherwise -1.
      */
-    template <typename TFace>
-    size_t SetShared(IData* _xdata_p, const size_t _idx, const std::weak_ptr<TFace>& _shared_ptr)
+    template <typename TInterface>
+    size_t SetWeak(IData* _xdata_p, const size_t _idx, const std::shared_ptr<TInterface>& _shared_ptr)
     {
         if (!_xdata_p)
             return -1;
 
-        using Face = std::decay_t<TFace>;
-        return _xdata_p->DataSet(xbase::TypeUid<Face>(), _shared_ptr, {}, _idx);
+        return _xdata_p->DataSet(xbase::TypeUid<TInterface>(), std::weak_ptr<TInterface> {_shared_ptr}, {}, _idx);
+    }
+
+    /**
+     * @brief Set a single data item with shared_ptr (for do not wrap twice)
+     * @tparam TInterface The data type to set.
+     * @param _xdata_p Pointer to the IData instance.
+     * @param _shared_ptr Shared pointer to the ITInterfaceData instance.
+     * @param _idx Index for the data to set.
+     * @param _face Data instance to set.
+     * @return Index of the added data if successful, otherwise -1.
+     */
+    template <typename TInterface>
+    IData::UPtr AddShared(const IData* _xdata_p, const size_t _idx, const std::shared_ptr<TInterface>& _shared_ptr)
+    {
+        auto data_p = xdata::CreateOrClone(_xdata_p);
+        data_p->DataSet(xbase::TypeUid<TInterface>(), _shared_ptr, {}, _idx);
+        return data_p;
+    }
+
+    /**
+     * @brief Set a single data item with weak_ptr (for do not wrap twice)
+     * @tparam TInterface The data type to set.
+     * @param _xdata_p Pointer to the IData instance.
+     * @param _shared_ptr Shared pointer to the TInterface instance.
+     * @param _idx Index for the data to set.
+     * @param _face Data instance to set.
+     * @return Index of the added data if successful, otherwise -1.
+     */
+    template <typename TInterface>
+    IData::UPtr AddWeak(const IData* _xdata_p, const size_t _idx, const std::shared_ptr<TInterface>& _shared_ptr)
+    {
+        auto data_p = xdata::CreateOrClone(_xdata_p);
+        data_p->DataSet(xbase::TypeUid<TInterface>(), std::weak_ptr<TInterface> {_shared_ptr}, {}, _idx);
+        return data_p;
     }
 
     /**
      * @brief Get a shared_ptr<TData> item by index and its type data type.
      * @note for weak_ptr<> is supported
-     * @tparam TFace The data type to get.
+     * @tparam TInterface The data type to get.
      * @param _xdata_p Pointer to the IData instance.
      * @param _idx Index for the data to get.
      * @return A containing the shared_ptr<> if successful, otherwise a _default pointer.
      */
-    template <typename TFace>
-    std::shared_ptr<TFace> GetShared(const IData* _xdata_p, const size_t _idx = 0, const std::shared_ptr<TFace>& _default = {})
+    template <typename TInterface>
+    std::shared_ptr<TInterface> GetShared(const IData*                       _xdata_p,
+                                          const size_t                       _idx     = 0,
+                                          const std::shared_ptr<TInterface>& _default = {})
     {
         if (!_xdata_p)
             return _default;
 
-        auto face = _xdata_p->DataGet(xbase::TypeUid<TFace>(), _idx).first;
+        auto face = _xdata_p->DataGet(xbase::TypeUid<TInterface>(), _idx).first;
         if (!face.has_value())
             return _default;
 
-        auto taken_interface = AnyUnwrapShared<TFace>(face);
-        return taken_interface ? taken_interface : _default;
+        auto taken_interface = AnyUnwrapShared<TInterface>(face);
+        if (taken_interface)
+            return taken_interface;
+
+        return _default;
+    }
+
+    /**
+     * @brief Get a shared_ptr<const TData> item by index and its type data type.
+     * @note for weak_ptr<> is supported
+     * @tparam TInterface The data type to get.
+     * @param _xdata_p Pointer to the IData instance.
+     * @param _idx Index for the data to get.
+     * @return A containing the shared_ptr<> if successful, otherwise a _default pointer.
+     */
+    template <typename TInterface>
+    std::shared_ptr<const TInterface> GetSharedConst(const IData*                             _xdata_p,
+                                                     const size_t                             _idx     = 0,
+                                                     const std::shared_ptr<const TInterface>& _default = {})
+    {
+        if (!_xdata_p)
+            return _default;
+
+        auto face = _xdata_p->DataGet(xbase::TypeUid<const TInterface>(), _idx).first;
+        if (face.has_value()) {
+            auto taken_interface = AnyUnwrapShared<const TInterface>(face);
+            if (taken_interface)
+                return taken_interface;
+        }
+
+        auto taken_interface = GetShared<TInterface>(_xdata_p, _idx);
+        if (taken_interface)
+            return taken_interface;
+
+        return _default;
     }
 
     /**
      * @brief Get all shared_ptr of the same type as a vector.
-     * @tparam TFace The data type to get the vector for.
+     * @tparam TInterface The data type to get the vector for.
      * @param _xdata_p Pointer to the IData instance.
      * @return Vector with shared_ptr data items if successful, otherwise empty vector.
      */
-    template <typename TFace>
-    std::vector<std::shared_ptr<TFace>> GetSharedVec(const IData* _xdata_p)
+    template <typename TInterface>
+    std::vector<std::shared_ptr<TInterface>> GetSharedVec(const IData* _xdata_p)
     {
-        std::vector<std::shared_ptr<TFace>> data_vec;
-        for (size_t z = 0; z < Count<TFace>(_xdata_p); ++z) {
-            auto data_sp = GetShared<TFace>(_xdata_p, z);
+        std::vector<std::shared_ptr<TInterface>> data_vec;
+        for (size_t z = 0; z < Count<TInterface>(_xdata_p); ++z) {
+            auto data_sp = GetShared<TInterface>(_xdata_p, z);
             if (data_sp)
                 data_vec.push_back(data_sp);
         }

@@ -2,9 +2,17 @@
 
 namespace xsdk {
 
-xbase::IScheduler::UPtr xscheduler::CreateScheduler(const xbase::IClock* _clock_p, const IWorker::SPtr& _default_worker)
+xbase::IScheduler::UPtr xscheduler::CreateScheduler(const xbase::IClock* _clock_p,
+                                                    const bool           _use_static_workers_pool,
+                                                    const IWorker::SPtr& _default_worker)
 {
-    return std::make_unique<xbase::impl::SchedulerImpl>(_clock_p, _default_worker);
+    return std::make_unique<xbase::impl::SchedulerImpl>(_clock_p, _use_static_workers_pool, _default_worker);
+}
+
+xbase::IScheduler* xscheduler::StaticScheduler()
+{
+    static xbase::IScheduler::UPtr scheduler = xscheduler::CreateScheduler(xclock::SysClock(true), true);
+    return scheduler.get();
 }
 
 namespace xbase::impl {
@@ -24,24 +32,21 @@ namespace xbase::impl {
     {
         return std::exchange(execution_data_.task_info.scheduled_time, _scheduled_time);
     }
-    const IWorker::SPtr& SchedulerImpl::SchedulerTask::Worker(const IWorker::SPtr& _default_worker)
+    SchedulerImpl::ExecutionData SchedulerImpl::SchedulerTask::ForExecution(const IClock* _clock_p) const
     {
-        return execution_data_.task_worker ? execution_data_.task_worker : _default_worker;
-    }
-    SchedulerImpl::ExecutionData SchedulerImpl::SchedulerTask::ForExecution(const IWorker::SPtr& _default_worker,
-                                                                            const IClock*        _clock_p) const
-    {
-        ExecutionData execution_data = execution_data_;
-        if (!execution_data.task_worker)
-            execution_data.task_worker = _default_worker;
+        ExecutionData execution_data     = execution_data_;
         execution_data.task_info.clock_p = _clock_p;
         return execution_data;
     }
 
-    SchedulerImpl::SchedulerImpl(const xbase::IClock* _clock_p, const IWorker::SPtr& _default_worker)
+    SchedulerImpl::SchedulerImpl(const xbase::IClock* _clock_p,
+                                 const bool           _use_static_workers_pool,
+                                 const IWorker::SPtr& _default_worker)
         : clock_p_(xclock::CreateOrClone(_clock_p, xclock::SteadySyncGen(true))),
-          default_worker_(_default_worker)
+          use_static_workers_pool_(_use_static_workers_pool),
+          default_worker_(_use_static_workers_pool ? nullptr : _default_worker)
     {
+        assert(!(_use_static_workers_pool && _default_worker));
         // For scheduler is highly recommented to use monotonic sync gen
         assert(clock_p_ && clock_p_->SyncGenerator()->IsMonotonicIncrease());
     }
@@ -105,14 +110,15 @@ namespace xbase::impl {
         if (it == executing_tasks_.end())
             return {TaskRes::kNotFound, std::future<IWorker::FinishType> {}};
 
-        IWorker::SPtr task_worker = it->second->Worker(default_worker_);
+        IWorker::SPtr task_worker = it->second->Worker();
         executing_tasks_.erase(it);
 
         // unlock mutex as worker may be locked WorkerExecute_ -> labmda
         lck.unlock();
 
-        if (task_worker) {
-            auto [res, cancel_future] = task_worker->TaskCancel(_task_uid);
+        auto* worker_p = TaskWorker_(task_worker);
+        if (worker_p) {
+            auto [res, cancel_future] = worker_p->TaskCancel(_task_uid);
             if (res == IWorker::CancelRes::kExecutingNow)
                 return {TaskRes::kExecutingNow, std::move(cancel_future)};
         }
@@ -133,12 +139,11 @@ namespace xbase::impl {
         if (nh.empty())
             return executing_tasks_.count(_task_uid) > 0 ? TaskRes::kExecutingNow : TaskRes::kNotFound;
 
-        auto task_worker = nh.mapped()->Worker(default_worker_);
-        if (task_worker && _scheduled_time + kAdvance64 < clock_p_->Time()) {
+        if (TaskWorker_(nh.mapped()->Worker()) && _scheduled_time + kAdvance64 < clock_p_->Time()) {
 
             auto [it, is_inserted] = executing_tasks_.try_emplace(_task_uid, std::move(nh.mapped()));
             assert(is_inserted);
-            auto execution_data = it->second->ForExecution(default_worker_, clock_p_.get());
+            auto execution_data = it->second->ForExecution(clock_p_.get());
             lck.unlock();
 
             const auto task_uid = execution_data.task_info.task_uid;
@@ -158,6 +163,17 @@ namespace xbase::impl {
         auto corrected_time = std::max(min_time, _scheduled_time);
         InsertTask_(corrected_time, std::move(nh.mapped()));
         return TaskRes::kOk;
+    }
+
+    IWorker* SchedulerImpl::TaskWorker_(const IWorker::SPtr& _task_worker)
+    {
+        if (_task_worker)
+            return _task_worker.get();
+
+        if (use_static_workers_pool_)
+            return xworker::StaticPool();
+
+        return default_worker_.get();
     }
 
     SchedulerImpl::SheduledMap::node_type SchedulerImpl::ExtractTask_(const IWorker::TaskUid _task_uid)
@@ -196,8 +212,10 @@ namespace xbase::impl {
 
     void SchedulerImpl::OnDestroy_()
     {
+        std::unique_lock lck(mtx_);
         stopped_.store(true);
         wake_up_.notify_all();
+        lck.unlock();
 
         if (thread_p_ && thread_p_->joinable()) {
             assert(thread_p_->get_id() != std::this_thread::get_id());
@@ -219,11 +237,11 @@ namespace xbase::impl {
 
     void SchedulerImpl::ThreadRun_()
     {
+        std::unique_lock lck(mtx_);
+
         TaskInfo info;
         info.clock_p = clock_p_.get();
         while (!stopped_.load()) {
-            std::unique_lock lck(mtx_);
-
             auto wait_rt = TillNextRT_(time64::kMinute);
             if (wait_rt > kAdvance64) {
                 wake_up_.wait_for(lck, std::chrono::microseconds(wait_rt / time64::kMisec));
@@ -236,15 +254,15 @@ namespace xbase::impl {
             time_by_taskid_.erase(nh.mapped()->TaskId());
             auto [it, is_inserted] = executing_tasks_.try_emplace(nh.mapped()->TaskId(), std::move(nh.mapped()));
             assert(is_inserted);
-            auto execution_data = it->second->ForExecution(default_worker_, clock_p_.get());
+            auto execution_data = it->second->ForExecution(clock_p_.get());
             lck.unlock();
 
             const auto task_uid = execution_data.task_info.task_uid;
-            if (execution_data.task_worker) {
-                if (!WorkerExecute_(std::move(execution_data))) {
-                    lck.lock();
+            if (TaskWorker_(execution_data.task_worker)) {
+                bool is_busy = !WorkerExecute_(std::move(execution_data));
+                lck.lock();
+                if (is_busy)
                     ExecutionDone_(task_uid, true, clock_p_->Time() + kRepeatForPoolBusy64);
-                }
             }
             else {
                 auto repeat_rt = Execute_(execution_data);
@@ -256,14 +274,14 @@ namespace xbase::impl {
 
     bool SchedulerImpl::WorkerExecute_(ExecutionData&& _execution_data)
     {
-        assert(_execution_data.task_worker);
         const auto task_uid = _execution_data.task_info.task_uid;
         assert(task_uid != xbase::kInvalidUid);
 
         // For do not pass worker into lambda !!!
-        auto task_worker = std::exchange(_execution_data.task_worker, xbase::IWorker::SPtr());
-        assert(task_worker);
-        auto check_task_uid = task_worker->TaskPut(
+        auto  task_worker = std::exchange(_execution_data.task_worker, xbase::IWorker::SPtr());
+        auto* worker_p    = TaskWorker_(task_worker);
+        assert(worker_p);
+        auto check_task_uid = worker_p->TaskPut(
             [this, ed = std::move(_execution_data)]() {
                 auto repeat_rt = Execute_(ed);
                 if (repeat_rt.has_value() && repeat_rt.value() <= clock_p_->Time() + kAdvance64)
@@ -282,7 +300,7 @@ namespace xbase::impl {
 
     bool SchedulerImpl::ExecutionDone_(const uint64_t                      _task_uid,
                                        bool                                _is_worker_busy,
-                                       const std::optional<xbase::Time64>& _repeat_time)
+                                       const std::optional<xbase::Time64> _repeat_time)
     {
         // Task could be removed from executing_tasks if it's canceled
         auto nh = executing_tasks_.extract(_task_uid);

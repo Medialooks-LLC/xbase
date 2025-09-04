@@ -157,14 +157,15 @@ std::condition_variable& DefaultClockEvent()
 std::pair<xbase::Time64, xbase::Time64> xclock::EventWaitClockTime(std::condition_variable&      _cv_event,
                                                                    std::unique_lock<std::mutex>* _lck_p,
                                                                    const xbase::IClock*          _clock_p,
-                                                                   const xbase::Time64           _wait_untill,
+                                                                   const xbase::Time64           _wait_until,
                                                                    const xbase::Time64           _skip_wait_if_less)
 {
     assert(_clock_p);
     if (!_clock_p)
         return {time64::kNoVal, time64::kNoVal};
 
-    if (_clock_p->Time() + _skip_wait_if_less >= _wait_untill)
+    auto start_time = _clock_p->Time();
+    if (start_time + _skip_wait_if_less >= _wait_until)
         return {};
 
     static std::mutex mtx_static;
@@ -173,13 +174,13 @@ std::pair<xbase::Time64, xbase::Time64> xclock::EventWaitClockTime(std::conditio
     if (!lck_p)
         lck_p = std::make_unique<std::unique_lock<std::mutex>>(mtx_static);
 
-    std::cv_status wait_res   = std::cv_status::timeout;
-    auto           start_time = _clock_p->Time();
-    auto           clock_time = start_time;
-    while (clock_time + _skip_wait_if_less < _wait_untill) {
+    std::cv_status wait_res = std::cv_status::timeout;
+
+    auto clock_time = start_time;
+    while (clock_time + _skip_wait_if_less < _wait_until) {
         auto wait_res = _cv_event.wait_for(
             *lck_p,
-            std::chrono::microseconds((_wait_untill - clock_time) / time64::kMisec)); //-V1089
+            std::chrono::microseconds((_wait_until - clock_time) / time64::kMisec)); //-V1089
         clock_time = _clock_p->Time();
 
         if (wait_res == std::cv_status::no_timeout) {
@@ -193,30 +194,33 @@ std::pair<xbase::Time64, xbase::Time64> xclock::EventWaitClockTime(std::conditio
     if (lck_p.get() == _lck_p)
         lck_p.release();
 
-    return {clock_time - start_time, _wait_untill - start_time};
+    return {clock_time - start_time, _wait_until - start_time};
 }
 
 std::pair<xbase::Time64, xbase::Time64> xclock::WaitClockTime(const xbase::IClock* _clock_p,
-                                                              const xbase::Time64  _wait_untill,
+                                                              const xbase::Time64  _wait_until,
                                                               const xbase::Time64  _skip_wait_if_less)
 {
     assert(_clock_p);
     if (!_clock_p)
         return {time64::kNoVal, time64::kNoVal};
 
-    xbase::Time64 wait_real = {};
-    xbase::Time64 wait_exp  = {};
-    while (_clock_p->Time() + _skip_wait_if_less < _wait_untill) {
-        std::tie(
-            wait_real,
-            wait_exp) = EventWaitClockTime(DefaultClockEvent(), nullptr, _clock_p, _wait_untill, _skip_wait_if_less);
+    auto start_time = _clock_p->Time();
+    if (start_time + _skip_wait_if_less >= _wait_until)
+        return {};
 
+    auto exp_wait_time = std::max<int64_t>(0, _wait_until - start_time);
+
+    auto& cv_event = DefaultClockEvent();
+    while (_clock_p->Time() + _skip_wait_if_less < _wait_until) {
+
+        auto [wait_real, wait_exp] = EventWaitClockTime(cv_event, nullptr, _clock_p, _wait_until, _skip_wait_if_less);
         assert(wait_real != time64::kNoVal);
-        if (wait_exp != time64::kNoVal || is_shutdown_.load())
-            break;
+        if (is_shutdown_.load())
+            return {wait_real, time64::kNoVal};
     }
 
-    return {wait_real, wait_exp};
+    return {_clock_p->Time() - start_time, exp_wait_time};
 }
 
 // Clock & Syn gen impl

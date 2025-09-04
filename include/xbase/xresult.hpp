@@ -23,8 +23,8 @@ struct is_smart_ptr<std::shared_ptr<T>>: std::true_type {};
  * @brief Specialization for std::unique_ptr
  * @tparam T The pointed type for unique_ptr
  */
-template <typename T>
-struct is_smart_ptr<std::unique_ptr<T>>: std::true_type {};
+template <typename T, typename Deleter>
+struct is_smart_ptr<std::unique_ptr<T, Deleter>>: std::true_type {};
 
 /**
  * @brief A variadic type that can hold either a monostate, a result, or an error code.

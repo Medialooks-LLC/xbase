@@ -3,8 +3,8 @@
 namespace xsdk {
 
 xbase::IWorker::UPtr xworker::CreateWorker(OnIdleFunction&&               _on_idle,
-                                           const std::optional<uint32_t>& _idle_timeout_msec,
-                                           const std::optional<size_t>&   _max_tasks_count,
+                                           const std::optional<uint32_t> _idle_timeout_msec,
+                                           const std::optional<size_t>   _max_tasks_count,
                                            OnThreadStartedFunction&&      _on_started,
                                            OnThreadFinishedFunction&&     _on_finished)
 {
@@ -18,8 +18,8 @@ xbase::IWorker::UPtr xworker::CreateWorker(OnIdleFunction&&               _on_id
 std::pair<xbase::IWorker::UPtr, xbase::IWorker::TaskUid> xworker::CreateWorkerWithTask(
     IWorker::TaskFunction&&        _worker_task,
     OnIdleFunction&&               _on_idle,
-    const std::optional<uint32_t>& _idle_timeout_msec,
-    const std::optional<size_t>&   _max_tasks_count,
+    const std::optional<uint32_t> _idle_timeout_msec,
+    const std::optional<size_t>   _max_tasks_count,
     OnThreadStartedFunction&&      _on_started,
     OnThreadFinishedFunction&&     _on_finished)
 {
@@ -35,8 +35,8 @@ std::pair<xbase::IWorker::UPtr, xbase::IWorker::TaskUid> xworker::CreateWorkerWi
 namespace xbase::impl {
 
     WorkerImpl::WorkerImpl(xworker::OnIdleFunction&&           _on_idle,
-                           const std::optional<uint32_t>&      _idle_timeout_msec,
-                           const std::optional<size_t>&        _max_tasks_count,
+                           const std::optional<uint32_t>      _idle_timeout_msec,
+                           const std::optional<size_t>        _max_tasks_count,
                            xworker::OnThreadStartedFunction&&  _on_started,
                            xworker::OnThreadFinishedFunction&& _on_finished)
         : on_idle_pf_(std::move(_on_idle)),
@@ -55,8 +55,8 @@ namespace xbase::impl {
     }
 
     IWorker::TaskUid WorkerImpl::TaskPut(TaskFunction&&                            _task_pf,
-                                         std::optional<TaskUid>&&                  _task_uid,
-                                         std::optional<State>&&                    _required_state_mask,
+                                         const std::optional<TaskUid>                  _task_uid,
+                                         const std::optional<State>                    _required_state_mask,
                                          std::optional<std::promise<FinishType>>&& _task_finish_promise)
     {
         assert(!_task_uid.has_value() || _task_uid.value() != xbase::kInvalidUid);

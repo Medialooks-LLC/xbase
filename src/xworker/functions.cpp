@@ -8,8 +8,8 @@ namespace xsdk {
 
 bool xworker::ExecuteSyncVoid(IWorker*                        _worker_p,
                               std::function<void()>&&         _pf,
-                              std::optional<IWorker::State>&& _required_state_mask,
-                              std::optional<uint64_t>&&       _task_uid)
+                              const std::optional<IWorker::State> _required_state_mask,
+                              const std::optional<uint64_t>       _task_uid)
 {
     assert(_pf);
     if (!_pf)
@@ -38,8 +38,8 @@ bool xworker::ExecuteSyncVoid(IWorker*                        _worker_p,
 
 std::future<xbase::IWorker::FinishType> xworker::ExecuteAsyncVoid(IWorker*                               _worker_p,
                                                                   std::function<IWorker::RepeatType()>&& _pf,
-                                                                  std::optional<IWorker::TaskUid>&&      _task_uid,
-                                                                  std::optional<IWorker::State>&& _required_state_mask)
+                                                                  const std::optional<IWorker::TaskUid>      _task_uid,
+                                                                  const std::optional<IWorker::State> _required_state_mask)
 {
     assert(_worker_p && _pf);
     if (!_worker_p || !_pf)

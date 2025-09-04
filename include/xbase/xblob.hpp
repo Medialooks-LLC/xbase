@@ -1,6 +1,7 @@
 #pragma once
 
 #include "holder.hpp"
+#include "xpointers.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -173,35 +174,57 @@ using XBuffer = BufferTyped<uint8_t>;
 using XBufferC = BufferTypedC<uint8_t>;
 
 /**
- * @brief A @ref create and allocate memory for BufferTyped with data type.
+ * @brief Allocate unique ptr to vector and optionally copy data into it's
  */
 template <typename TData>
-BufferTyped<TData> BufferCreate(const size_t _size, const TData* _data_p)
+std::unique_ptr<std::vector<TData>> VecPtrAlloc(const size_t _size, const TData* _data_p = nullptr)
 {
-    if (_size == 0)
-        return {};
-
-    std::vector<TData> holder(_size);
+    auto vector_p = std::make_unique<std::vector<TData>>(_size);
     if (_data_p)
-        std::memcpy(holder.data(), _data_p, sizeof(TData) * _size);
+        std::memcpy(vector_p->data(), _data_p, sizeof(TData) * _size);
 
-    return BufferTyped<TData> {BlobTyped<TData> {holder.size(), holder.data()}, std::move(holder)};
+    return vector_p;
+}
+
+/**
+ * @brief A @ref make BufferTyped from data and holder.
+ */
+template <typename TData>
+BufferTyped<TData> BufferMake(const size_t _size, TData* _data_p, std::any&& _holder)
+{
+    return BufferTyped<TData> {BlobTyped<TData> {_size, _data_p}, std::move(_holder)};
 }
 
 /**
  * @brief A @ref create and allocate memory for BufferTyped with data type.
  */
 template <typename TData>
-BufferTypedC<TData> BufferCreateC(const size_t _size, const TData* _data_p)
+BufferTypedC<TData> BufferMakeC(const size_t _size, const TData* _data_p, std::any&& _holder)
+{
+    return BufferTypedC<TData> {BlobTypedC<TData> {_size, _data_p}, std::move(_holder)};
+}
+
+/**
+ * @brief A @ref create and allocate memory for BufferTyped with data type.
+ */
+template <typename TData>
+BufferTyped<TData> BufferCreate(const size_t _size, const TData* _data_p = nullptr)
 {
     if (_size == 0)
         return {};
 
-    std::vector<TData> holder(_size);
-    if (_data_p)
-        std::memcpy(holder.data(), _data_p, sizeof(TData) * _size);
+    auto holder_sp = xbase::ToShared(xbase::VecPtrAlloc(_size, _data_p));
+    assert(holder_sp);
+    return xbase::BufferMake(holder_sp->size(), holder_sp->data(), holder_sp);
+}
 
-    return BufferTypedC<TData> {BlobTypedC<TData> {holder.size(), holder.data()}, std::move(holder)};
-} 
+/**
+ * @brief A @ref create and allocate memory for const BufferTyped with data type.
+ */
+template <typename TData>
+BufferTypedC<TData> BufferCreateC(const size_t _size, const TData* _data_p = nullptr)
+{
+    return xbase::BufferCreate(_size, _data_p);
+}
 
 } // namespace xsdk::xbase
