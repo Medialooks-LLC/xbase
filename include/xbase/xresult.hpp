@@ -98,6 +98,16 @@ public:
     {
     }
     /**
+     * @brief Constructor for a result containing a shared_ptr.
+     * @tparam TInterface The interface type of the smart pointer.
+     * @param _sp The smart pointer to be moved into the result object.
+     */
+    template <typename TInterface>
+    XResult(const std::shared_ptr<TInterface>& _sp)
+        : std::variant<std::monostate, TResult, std::error_code>(TResult(_sp))
+    {
+    }
+    /**
      * @brief Constructor for a result containing a unique_ptr.
      * @tparam TInterface The interface type of the smart pointer.
      * @param _up The smart pointer to be moved into the result object.
