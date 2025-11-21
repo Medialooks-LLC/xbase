@@ -2,11 +2,11 @@
 
 namespace xsdk {
 
-xbase::IWorker::UPtr xworker::CreateWorker(OnIdleFunction&&               _on_idle,
+xbase::IWorker::UPtr xworker::CreateWorker(OnIdleFunction&&              _on_idle,
                                            const std::optional<uint32_t> _idle_timeout_msec,
                                            const std::optional<size_t>   _max_tasks_count,
-                                           OnThreadStartedFunction&&      _on_started,
-                                           OnThreadFinishedFunction&&     _on_finished)
+                                           OnThreadStartedFunction&&     _on_started,
+                                           OnThreadFinishedFunction&&    _on_finished)
 {
     return std::make_unique<xbase::impl::WorkerImpl>(std::move(_on_idle),
                                                      _idle_timeout_msec,
@@ -16,12 +16,12 @@ xbase::IWorker::UPtr xworker::CreateWorker(OnIdleFunction&&               _on_id
 }
 
 std::pair<xbase::IWorker::UPtr, xbase::IWorker::TaskUid> xworker::CreateWorkerWithTask(
-    IWorker::TaskFunction&&        _worker_task,
-    OnIdleFunction&&               _on_idle,
+    IWorker::TaskFunction&&       _worker_task,
+    OnIdleFunction&&              _on_idle,
     const std::optional<uint32_t> _idle_timeout_msec,
     const std::optional<size_t>   _max_tasks_count,
-    OnThreadStartedFunction&&      _on_started,
-    OnThreadFinishedFunction&&     _on_finished)
+    OnThreadStartedFunction&&     _on_started,
+    OnThreadFinishedFunction&&    _on_finished)
 {
     auto worker_p = CreateWorker(std::move(_on_idle),
                                  _idle_timeout_msec,
@@ -35,8 +35,8 @@ std::pair<xbase::IWorker::UPtr, xbase::IWorker::TaskUid> xworker::CreateWorkerWi
 namespace xbase::impl {
 
     WorkerImpl::WorkerImpl(xworker::OnIdleFunction&&           _on_idle,
-                           const std::optional<uint32_t>      _idle_timeout_msec,
-                           const std::optional<size_t>        _max_tasks_count,
+                           const std::optional<uint32_t>       _idle_timeout_msec,
+                           const std::optional<size_t>         _max_tasks_count,
                            xworker::OnThreadStartedFunction&&  _on_started,
                            xworker::OnThreadFinishedFunction&& _on_finished)
         : on_idle_pf_(std::move(_on_idle)),
@@ -55,8 +55,8 @@ namespace xbase::impl {
     }
 
     IWorker::TaskUid WorkerImpl::TaskPut(TaskFunction&&                            _task_pf,
-                                         const std::optional<TaskUid>                  _task_uid,
-                                         const std::optional<State>                    _required_state_mask,
+                                         const std::optional<TaskUid>              _task_uid,
+                                         const std::optional<State>                _required_state_mask,
                                          std::optional<std::promise<FinishType>>&& _task_finish_promise)
     {
         assert(!_task_uid.has_value() || _task_uid.value() != xbase::kInvalidUid);
@@ -100,6 +100,13 @@ namespace xbase::impl {
 
         const std::unique_lock lck(mtx_);
         if (executed_task_id_.load() == _task_uid) {
+
+            if (worker_thread_p_ && worker_thread_p_->get_id() == std::this_thread::get_id()) {
+                // For cancel task from executing thread DO NOT return future
+                tasks_queue_->CancelMarkAdd(_task_uid);
+                return {CancelRes::kCancelFromExecution, std::future<IWorker::FinishType> {}};
+            }
+
             auto cancel_future = tasks_queue_->CancelMarkAdd(_task_uid);
             return {CancelRes::kExecutingNow, std::move(cancel_future)};
         }
