@@ -78,6 +78,25 @@ TEST(xscheduler_test, task_cancel_without_worker)
     EXPECT_FALSE(res.second.valid()) << "Task result future should be invalid.";
 }
 
+TEST(xscheduler_test, task_cancel_inside_worker)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, true);
+
+    std::promise<void> ready; 
+    xbase::Uid task_uid = xbase::kInvalidUid;
+    task_uid = scheduler_p->ScheduleTask(time64::kSecond, [&](const xbase::IScheduler::TaskInfo* _task_info) {
+
+        auto [res, future] = scheduler_p->CancelTask(task_uid);
+        EXPECT_EQ(res, xbase::IScheduler::TaskRes::kOk) << "WRONG STATE";
+
+        EXPECT_FALSE(future.valid());
+        ready.set_value();
+        return std::nullopt;
+    });
+
+    ready.get_future().wait();
+}
+
 TEST(xscheduler_test, task_reschedule_of_invalid_uid)
 {
     auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());

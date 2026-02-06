@@ -63,6 +63,15 @@ namespace xbase {
         /// @brief Function type of task.
         using TaskFunction = std::function<RepeatType()>;
 
+        /**
+         * @brief Struct representation of worker status: number of executed and waiting tasks and worker state
+         */
+        struct Status {
+            size_t executing_tasks = 0;
+            size_t awaiting_tasks  = 0;
+            State  state           = State::kStopped;
+        };
+
     public:
         virtual ~IWorker() = default;
 
@@ -91,10 +100,10 @@ namespace xbase {
                                 const std::optional<State>                _required_state_mask = {},
                                 std::optional<std::promise<FinishType>>&& _task_finish_promise = {}) = 0;
         /**
-         * @brief Get tasks count.
-         * @return A pair of executing and scheduled tasks count.
+         * @brief Get worker status: tasks count and state
+         * @return A IWorker::Status structure with executing and awaiting tasks count.
          */
-        virtual std::pair<size_t, size_t> TasksCount() const = 0;
+        virtual IWorker::Status WorkerStatus() const = 0;
 
         /**
          * @brief Get maximum tasks count.

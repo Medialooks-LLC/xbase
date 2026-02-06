@@ -232,8 +232,8 @@ TEST(xworker_tests, pool_try_check_preffered_workers) // test used only for code
 TEST(xworker_tests, worker_tasks_count)
 {
     auto worker_p = xworker::CreateWorker({}, {}, 10);
-    ASSERT_EQ(worker_p->TasksCount().first, 0);
-    ASSERT_EQ(worker_p->TasksCount().second, 0);
+    ASSERT_EQ(worker_p->WorkerStatus().executing_tasks, 0);
+    ASSERT_EQ(worker_p->WorkerStatus().awaiting_tasks, 0);
 
     const int32_t     delay_msec   = 500;
     const std::string expected_res = "check_string";
@@ -253,17 +253,17 @@ TEST(xworker_tests, worker_tasks_count)
         return expected_res;
     });
     [[maybe_unused]] auto val         = future.get();
-    auto                  count_tasks = worker_p->TasksCount();
+    auto                  count_tasks = worker_p->WorkerStatus();
 
-    EXPECT_EQ(count_tasks.first, 1) << "TasksCount: " << count_tasks.first << ", " << count_tasks.second;
-    EXPECT_TRUE(count_tasks.second > 1) << "TasksCount: " << count_tasks.first << ", " << count_tasks.second;
+    EXPECT_EQ(count_tasks.executing_tasks, 1) << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
+    EXPECT_TRUE(count_tasks.awaiting_tasks > 1) << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
 }
 
 TEST(xworker_tests, pool_tasks_count)
 {
     auto pool_p = xworker::CreatePool(4, 8);
-    ASSERT_EQ(pool_p->TasksCount().first, 0);
-    ASSERT_EQ(pool_p->TasksCount().second, 0);
+    ASSERT_EQ(pool_p->WorkerStatus().executing_tasks, 0);
+    ASSERT_EQ(pool_p->WorkerStatus().awaiting_tasks, 0);
 
     const int32_t     delay_msec   = 500;
     const std::string expected_res = "check_string";
@@ -276,9 +276,9 @@ TEST(xworker_tests, pool_tasks_count)
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
-    auto count_tasks = pool_p->TasksCount();
-    EXPECT_EQ(count_tasks.first, 8) << "TasksCount: " << count_tasks.first << ", " << count_tasks.second;
-    EXPECT_TRUE(count_tasks.second > 1) << "TasksCount: " << count_tasks.first << ", " << count_tasks.second;
+    auto count_tasks = pool_p->WorkerStatus();
+    EXPECT_EQ(count_tasks.executing_tasks, 8) << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
+    EXPECT_TRUE(count_tasks.awaiting_tasks > 1) << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
 }
 
 TEST(xworker_tests, worker_task_cancel_invalid_uid)
@@ -444,9 +444,9 @@ TEST(xworker_tests, pool_tasks_cancel)
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto [exec, total] = pool_p->TasksCount();
-    EXPECT_EQ(exec, counters.size()) << "Wrong executing task counter";
-    EXPECT_EQ(total, 0) << "Wrong await task counter";
+   auto sts = pool_p->WorkerStatus();
+    EXPECT_EQ(sts.executing_tasks, counters.size()) << "Wrong executing task counter";
+    EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong await task counter";
 
     std::array<std::uint64_t, 16> check_counters = {};
     for (size_t z = 0; z < task_uids.size(); ++z) {
@@ -460,9 +460,9 @@ TEST(xworker_tests, pool_tasks_cancel)
     // Future is set before number of tasks decreased
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    std::tie(exec, total) = pool_p->TasksCount();
-    EXPECT_EQ(exec, 0) << "Wrong executing task counter (after cancel)";
-    EXPECT_EQ(total, 0) << "Wrong total task counter (after cancel)";
+   sts = pool_p->WorkerStatus();
+    EXPECT_EQ(sts.executing_tasks, 0) << "Wrong executing task counter (after cancel)";
+    EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong sts.awaiting_tasks task counter (after cancel)";
 
     // Check for no cicles after stop
     for (size_t z = 0; z < task_uids.size(); ++z) {
@@ -497,9 +497,9 @@ TEST(xworker_tests, pool_tasks_cancel_all)
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto [exec, total] = pool_p->TasksCount();
-    EXPECT_EQ(exec, counters.size()) << "Wrong executing task counter";
-    EXPECT_EQ(total, 0) << "Wrong await task counter";
+    auto sts = pool_p->WorkerStatus();
+    EXPECT_EQ(sts.executing_tasks, counters.size()) << "Wrong executing task counter";
+    EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong await task counter";
 
     pool_p->TaskCancelAll();
 
@@ -510,9 +510,9 @@ TEST(xworker_tests, pool_tasks_cancel_all)
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    std::tie(exec, total) = pool_p->TasksCount();
-    EXPECT_EQ(exec, 0) << "Wrong executing task counter (after cancel)";
-    EXPECT_EQ(total, 0) << "Wrong total task counter (after cancel)";
+    sts = pool_p->WorkerStatus();
+    EXPECT_EQ(sts.executing_tasks, 0) << "Wrong executing task counter (after cancel)";
+    EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong sts.awaiting_tasks task counter (after cancel)";
 
     // Check for no cicles after stop
     for (size_t z = 0; z < task_uids.size(); ++z) {
@@ -547,9 +547,9 @@ TEST(xworker_tests, pool_tasks_cancel_with_deq)
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto [exec, total] = pool_p->TasksCount();
-    EXPECT_EQ(exec, counters.size() / 2) << "Wrong executing task counter";
-    EXPECT_EQ(exec + total, counters.size()) << "Wrong executing/total task counter";
+    auto sts = pool_p->WorkerStatus();
+    EXPECT_EQ(sts.executing_tasks, counters.size() / 2) << "Wrong executing task counter";
+    EXPECT_EQ(sts.executing_tasks + sts.awaiting_tasks, counters.size()) << "Wrong executing/sts.awaiting_tasks task counter";
 
     size_t                        executing      = 0;
     std::array<std::uint64_t, 16> check_counters = {};
@@ -568,14 +568,14 @@ TEST(xworker_tests, pool_tasks_cancel_with_deq)
         check_counters[z] = counters[z].load();
     }
 
-    EXPECT_GE(executing, exec) << "Wrong number of execiting tasks";
+    EXPECT_GE(executing, sts.executing_tasks) << "Wrong number of execiting tasks";
 
     // Future is set before number of tasks decreased
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    std::tie(exec, total) = pool_p->TasksCount();
-    EXPECT_EQ(exec, 0) << "Wrong executing task counter (after cancel)";
-    EXPECT_EQ(total, 0) << "Wrong total task counter (after cancel)";
+     sts = pool_p->WorkerStatus();
+    EXPECT_EQ(sts.executing_tasks, 0) << "Wrong executing task counter (after cancel)";
+    EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong sts.awaiting_tasks task counter (after cancel)";
 
     // Check for no cicles after stop
     for (size_t z = 0; z < task_uids.size(); ++z) {

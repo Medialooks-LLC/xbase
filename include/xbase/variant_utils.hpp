@@ -31,6 +31,20 @@ constexpr std::optional<T> VariantGet(const std::variant<Types...>* _var_p)
 }
 
 /**
+ * @brief Template to retrieve the value of a given type T from a variant container of Types...
+ * @tparam T The desired type to retrieve from the variant
+ * @tparam Types... The types that make up the variant container
+ * @param _var A const reference to the variant container
+ * @return An optional object of type std::optional<T> containing the value of type T from the variant or std::nullopt
+ * if T is not present in the variant
+ */
+template <class T, class... Types>
+constexpr std::optional<T> VariantGet(const std::variant<Types...>& _var)
+{
+    return VariantGet<T>(&_var);
+}
+
+/**
  * @brief Template to determine the index of a specific type TCheck in a variant container TVariant
  * @tparam TVariant The variant container
  * @tparam TCheck The specific type to find in the variant container

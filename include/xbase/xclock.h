@@ -4,6 +4,7 @@
 #include "xtime.h"
 #include "xuid.h"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -162,7 +163,6 @@ namespace xbase {
     private:
         Time64 Time_() const;
     };
-
 } // namespace xbase
 
 namespace xclock {
@@ -190,7 +190,7 @@ namespace xclock {
     template <typename TClock>
     typename TClock::time_point TimepointFromNow(const double _add_msec)
     {
-        return TClock::now() + std::chrono::microseconds((int64_t)std::ceil(_add_msec / 1000.0));
+        return TClock::now() + std::chrono::microseconds((int64_t)std::ceil(_add_msec * 1000.0));
     }
     template <class TClock, class TDuration>
     double ElapcedMsec(const std::chrono::time_point<TClock, TDuration>& _abs_time)
@@ -340,6 +340,23 @@ namespace xclock {
                                                                const xbase::IClock*          _clock_p,
                                                                const xbase::Time64           _wait_until,
                                                                const xbase::Time64           _skip_wait_if_less = 0);
+    /**
+     * @brief helper class for decreaese wait time
+     */
+    class Countdown {
+        std::atomic<xbase::Time64> end_time_ = {time64::kNoVal};
+
+    public:
+        Countdown(const Countdown& _copy) : end_time_(_copy.end_time_.load()) {}
+        Countdown(Countdown&& _move) noexcept;
+        Countdown(const std::optional<uint32_t> _wait_msec, const uint32_t _default_msec);
+        Countdown(const double _wait_msec) { ResetToMsec(_wait_msec); }
+
+    public:
+        xbase::Time64 RemainingTime64() const { return end_time_.load() - xclock::HighResTime(); }
+        uint32_t      RemainingMsec() const;
+        void          ResetToMsec(const double _remining_msec);
+    };
 
 } // namespace xclock
 

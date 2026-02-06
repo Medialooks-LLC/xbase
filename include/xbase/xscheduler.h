@@ -36,8 +36,7 @@ namespace xbase {
             IWorker::TaskUid task_uid = xbase::kInvalidUid;
             /// @brief The scheduled time for the task
             xbase::Time64 scheduled_time = time64::kNoVal;
-            /// @brief Counter for tracking the number of times a task is scheduled, for immediate repeated task do not
-            /// increased (private or default workers required for immediate repeat)
+            /// @brief Counter for tracking the number of times a task is executed
             uint64_t scheduling_counter = 0;
             /// @brief Counter for tracking the number of times a worker is busy when task was re-added.
             uint64_t worker_busy_counter = 0;
@@ -142,7 +141,7 @@ namespace xscheduler {
     /// @brief default scheduler (use default workers pool)
     xbase::IScheduler* StaticScheduler();
     /// @brief return _scheduler or static scheduler (never null)
-    inline xbase::IScheduler* DefaultScheduler(xbase::IScheduler* const _scheduler_p)
+    inline xbase::IScheduler* DefaultScheduler(xbase::IScheduler* const _scheduler_p = nullptr)
     {
         return _scheduler_p ? _scheduler_p : StaticScheduler();
     }

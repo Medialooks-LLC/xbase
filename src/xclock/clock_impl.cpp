@@ -288,4 +288,23 @@ namespace xclock::impl {
         assert(false);
     }
 } // namespace xclock::impl
+
+// Countdown
+xclock::Countdown::Countdown(Countdown&& _move) noexcept : end_time_(_move.end_time_.load()) { _move.ResetToMsec(0.0); }
+
+xclock::Countdown::Countdown(const std::optional<uint32_t> _wait_msec, const uint32_t _default_msec)
+{
+    ResetToMsec(_wait_msec.value_or(_default_msec));
+}
+
+uint32_t xclock::Countdown::RemainingMsec() const
+{
+    return (uint32_t)std::lround(std::max(0.0, time64::ToMsec(RemainingTime64())));
+}
+
+void xclock::Countdown::ResetToMsec(const double _remining_msec)
+{
+    end_time_.store(xclock::HighResTime() + time64::FromMsec(_remining_msec));
+}
+
 } // namespace xsdk

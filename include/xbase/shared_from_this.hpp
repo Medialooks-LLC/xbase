@@ -25,14 +25,11 @@ namespace xsdk::xbase {
 template <typename TInterface, class TClass>
 std::shared_ptr<TInterface> SharedFromThis(TClass* _this_p)
 {
-    try {
-        auto this_sp = std::static_pointer_cast<TClass>(_this_p->shared_from_this());
-        return std::static_pointer_cast<TInterface>(this_sp);
-    }
-    catch (const std::exception&) {
-    }
+    auto this_sp = std::static_pointer_cast<TClass>(_this_p->weak_from_this().lock());
+    if (!this_sp)
+        return nullptr; // For ability to add breakpoint
 
-    return nullptr;
+    return std::static_pointer_cast<TInterface>(this_sp);
 }
 
 /**
@@ -45,14 +42,11 @@ std::shared_ptr<TInterface> SharedFromThis(TClass* _this_p)
 template <typename TInterface, class TClass>
 std::shared_ptr<const TInterface> SharedFromThis(const TClass* _this_p)
 {
-    try {
-        auto this_sp = std::static_pointer_cast<const TClass>(_this_p->shared_from_this());
-        return std::static_pointer_cast<const TInterface>(this_sp);
-    }
-    catch (const std::exception&) {
-    }
+    auto this_sp = std::static_pointer_cast<const TClass>(_this_p->weak_from_this().lock());
+    if (!this_sp)
+        return nullptr; // For ability to add breakpoint
 
-    return nullptr;
+    return std::static_pointer_cast<const TInterface>(this_sp);
 }
 
 /**

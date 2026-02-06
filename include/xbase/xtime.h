@@ -111,10 +111,10 @@ namespace time64 {
                    (Time64)(_time_dbl * _unit_num_rt / _unit_den_rt) :
                    kNoVal;
     }
-    constexpr double ToMsec(const Time64 _time_rt) { return ToUnits(_time_rt, kMsec); }
-    constexpr Time64 FromMsec(const double& _time_dbl) { return FromUnits(_time_dbl, kMsec); }
-    constexpr double ToSec(const Time64 _time_rt) { return ToUnits(_time_rt, kSecond); }
-    constexpr Time64 FromSec(const double& _time_dbl) { return FromUnits(_time_dbl, kSecond); }
+    constexpr double                ToMsec(const Time64 _time_rt) { return ToUnits(_time_rt, kMsec); }
+    constexpr Time64                FromMsec(const double& _time_dbl) { return FromUnits(_time_dbl, kMsec); }
+    constexpr double                ToSec(const Time64 _time_rt) { return ToUnits(_time_rt, kSecond); }
+    constexpr Time64                FromSec(const double& _time_dbl) { return FromUnits(_time_dbl, kSecond); }
     constexpr std::optional<double> ToSec(const std::optional<Time64> _time_rt)
     {
         return _time_rt.has_value() ? std::optional<double> {ToSec(_time_rt.value())} : std::nullopt;
@@ -127,6 +127,13 @@ namespace time64 {
     {
         return _time_rt != _invalid_rt_value ? std::optional<Time64>(_time_rt) : std::nullopt;
     }
+    template <typename TRep, typename TPeriod>
+    xbase::Time64 FromDuration(const std::chrono::duration<TRep, TPeriod> _dur)
+    {
+        static constexpr int64_t nsec_per_tick = 1'000'000'000 / kSecond;
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(_dur).count() / nsec_per_tick;
+    }
+
     constexpr Time64 BlockStart(const int64_t _idx,
                                 const int64_t _block_len_num,
                                 const int64_t _block_len_den = 1,

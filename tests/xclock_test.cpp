@@ -396,7 +396,8 @@ TEST(xclock_tests, wait_clock)
     int  msec_wait = 1500;
     auto wait_till = clock_p->Time() + time64::FromMsec(msec_wait);
 
-    std::cout << "wait_clock BEGIN Clock:" << time64::ToMsec(clock_p->Time()) << " till:" << time64::ToMsec(wait_till) << std::endl;
+    std::cout << "wait_clock BEGIN Clock:" << time64::ToMsec(clock_p->Time()) << " till:" << time64::ToMsec(wait_till)
+              << std::endl;
     auto [real, expt] = xclock::WaitClockTime(clock_p.get(), wait_till);
     std::cout << "wait_clock DONE Wait:" << time64::ToMsec(real) << "/" << time64::ToMsec(expt) << std::endl;
     std::cout << "wait_clock END Clock:" << time64::ToMsec(clock_p->Time()) << " till:" << time64::ToMsec(wait_till)
@@ -505,6 +506,38 @@ TEST(xclock_tests, wait_with_cancel_mtx)
 
     EXPECT_EQ(expt, time64::kNoVal);
     EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 30.0);
+}
+
+TEST(xclock_tests, from_duration)
+{
+    auto start = std::chrono::system_clock::now();
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    auto time_rt = time64::FromDuration(std::chrono::system_clock::now() - start);
+    EXPECT_GE(time_rt, time64::FromMsec(195));
+    EXPECT_LE(time_rt, time64::FromMsec(300));
+}
+
+TEST(xclock_tests, countdown_test)
+{
+    xclock::Countdown countdown_msec(500);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // ~400
+    auto rest_msec = countdown_msec.RemainingMsec();
+    EXPECT_GT(rest_msec, 350);
+    EXPECT_LT(rest_msec, 450);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // ~300
+    rest_msec = countdown_msec.RemainingMsec();
+    EXPECT_GT(rest_msec, 250);
+    EXPECT_LT(rest_msec, 350);
+
+    countdown_msec.ResetToMsec(0);
+    rest_msec = countdown_msec.RemainingMsec();
+    EXPECT_EQ(rest_msec, 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    EXPECT_EQ(rest_msec, 0);
 }
 
 // NOLINTEND(*)

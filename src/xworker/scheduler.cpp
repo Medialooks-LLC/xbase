@@ -11,7 +11,7 @@ xbase::IScheduler::UPtr xscheduler::CreateScheduler(const xbase::IClock* _clock_
 
 xbase::IScheduler* xscheduler::StaticScheduler()
 {
-    static xbase::IScheduler::UPtr scheduler = xscheduler::CreateScheduler(xclock::SysClock(true), true);
+    static xbase::IScheduler::UPtr scheduler = xscheduler::CreateScheduler(xclock::UtcClock(true), true);
     return scheduler.get();
 }
 
@@ -281,14 +281,18 @@ namespace xbase::impl {
         auto  task_worker = std::exchange(_execution_data.task_worker, xbase::IWorker::SPtr());
         auto* worker_p    = TaskWorker_(task_worker);
         assert(worker_p);
+        auto execution_data_sp = xbase::ToShared(std::move(_execution_data));
         auto check_task_uid = worker_p->TaskPut(
-            [this, ed = std::move(_execution_data)]() {
-                auto repeat_rt = Execute_(ed);
-                if (repeat_rt.has_value() && repeat_rt.value() <= clock_p_->Time() + kAdvance64)
+            [this, execution_data_sp]() mutable {
+                auto repeat_rt = Execute_(*execution_data_sp);
+                if (repeat_rt.has_value() && repeat_rt.value() <= clock_p_->Time() + kAdvance64) {
+                    execution_data_sp->task_info.scheduled_time = repeat_rt.value();
+                    ++execution_data_sp->task_info.scheduling_counter;
                     return IWorker::RepeatType::kRepeatUntilCancel;
+                }
 
                 const std::unique_lock lck(mtx_);
-                ExecutionDone_(ed.task_info.task_uid, false, repeat_rt);
+                ExecutionDone_(execution_data_sp->task_info.task_uid, false, repeat_rt);
                 return IWorker::RepeatType::kDoNotRepeat;
             },
             task_uid);

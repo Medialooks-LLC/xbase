@@ -52,7 +52,7 @@ public:
                             const std::optional<State>                    _required_state_mask,
                             std::optional<std::promise<FinishType>>&& _task_finish_promise) override;
 
-    virtual std::pair<size_t, size_t> TasksCount() const override;
+    virtual IWorker::Status WorkerStatus() const override;
 
     virtual std::optional<size_t> MaxTasks() const override { return max_tasks_count_; };
 

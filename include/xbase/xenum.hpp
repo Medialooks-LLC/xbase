@@ -256,6 +256,15 @@ private:
 
 namespace xenum {
 
+    template <class TEnum>
+    constexpr bool HasFlag(const TEnum& _enum, const TEnum& _flag)
+    {
+        if (uint64_t(_flag) == 0)
+            return uint64_t(_enum) == 0;
+
+        return (uint64_t(_enum) & uint64_t(_flag)) == uint64_t(_flag);
+    }
+
     // Use for ops
     template <typename T>
     struct Value {

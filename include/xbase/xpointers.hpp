@@ -56,6 +56,20 @@ std::shared_ptr<TData> ToShared(std::unique_ptr<TData>&& _unique_p)
     return std::shared_ptr<TData>(std::move(_unique_p));
 }
 
+template <class TLocker>
+void Lock(TLocker* _locker_p)
+{
+    if (_locker_p)
+        _locker_p->lock();
+}
+
+template <class TLocker>
+void Unlock(TLocker* _locker_p)
+{
+    if (_locker_p)
+        _locker_p->unlock();
+}
+
 // For derived class
 /**
  * @brief Macro for derived classes to use the smart pointers defined in PtrBase

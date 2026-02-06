@@ -81,10 +81,11 @@ namespace xbase::impl {
         have_tasks_.notify_all();
         return task_uid;
     }
-    std::pair<size_t, size_t> WorkerImpl::TasksCount() const
+
+    IWorker::Status WorkerImpl::WorkerStatus() const
     {
-        return {executed_task_id_.load() != xbase::kInvalidUid ? 1 : 0, tasks_queue_->Size()};
-    };
+        return {(size_t)(executed_task_id_.load() != xbase::kInvalidUid ? 1 : 0), tasks_queue_->Size(), WorkerState()};
+    }
 
     std::thread::id WorkerImpl::ThreadId() const
     {

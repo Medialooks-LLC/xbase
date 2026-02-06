@@ -1,10 +1,13 @@
 #pragma once
 
+#include "xbase/atomic_wait.hpp"
+#include "xbase/containers.hpp"
 #include "xbase/numbers.hpp"
 #include "xbase/shared_from_this.hpp"
 #include "xbase/variant_utils.hpp"
 #include "xbase/xany.hpp"
 #include "xbase/xblob.hpp"
+#include "xbase/xbuffer.h"
 #include "xbase/xclock.h"
 #include "xbase/xdata.h"
 #include "xbase/xenum.hpp"

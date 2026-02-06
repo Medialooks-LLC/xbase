@@ -61,7 +61,7 @@ namespace xbase::impl {
                                      xworker::OnThreadFinishedFunction&& _on_finished,
                                      bool                                _fast_on_idle)
         : min_workers_(_min_workers),
-          max_workers_(_max_workers),
+          max_workers_(std::max<size_t>(1,_max_workers)),
           idle_timeout_(_idle_timeout),
           max_tasks_count_(_max_tasks_count),
           on_started_pf_(std::move(_on_started)),
@@ -69,6 +69,7 @@ namespace xbase::impl {
           fast_on_idle_(_fast_on_idle),
           tasks_queue_(CreateTaskQueue())
     {
+        assert(_max_workers > 0);
         // Add minimum workers w/o timeout -> always running - no expiration
         for (size_t z = 0; z < _min_workers; ++z)
             AddWorker_(std::nullopt);
@@ -143,9 +144,11 @@ namespace xbase::impl {
         return task_uid;
     }
 
-    std::pair<size_t, size_t> PoolWorkersImpl::TasksCount() const
+   IWorker::Status PoolWorkersImpl::WorkerStatus() const
     {
-        return {executing_now_.load(), tasks_queue_->Size()};
+       const std::shared_lock lck(rw_);
+
+       return {executing_now_.load(), tasks_queue_->Size(), ThreadState_()};
     }
 
     std::pair<IWorker::CancelRes, std::future<IWorker::FinishType>> PoolWorkersImpl::TaskCancel(const TaskUid _task_uid)

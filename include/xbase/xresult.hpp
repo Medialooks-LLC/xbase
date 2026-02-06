@@ -207,6 +207,17 @@ public:
         return nullptr;
     }
 
+    template <typename T = TResult, std::enable_if_t<!is_smart_ptr<T>::value, bool> = true>
+    const T* operator->() const
+    {
+        auto* res_p = std::get_if<T>(this);
+        assert(res_p);
+        if (res_p)
+            return res_p;
+
+        return nullptr;
+    }
+
     // For shared_ptr/unique_ptr
     template <typename T = TResult, std::enable_if_t<is_smart_ptr<T>::value, bool> = true>
     typename T::element_type* operator->() const
