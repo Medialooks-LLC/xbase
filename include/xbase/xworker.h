@@ -7,6 +7,7 @@
 
 #include "xpointers.hpp"
 #include "xuid.h"
+#include "xenum.hpp"
 
 namespace xsdk {
 /**

@@ -21,6 +21,15 @@ public:
         IWorker::TaskUid                                 task_uid = xbase::kInvalidUid;
         IWorker::TaskFunction                            task_pf;
         std::optional<std::promise<IWorker::FinishType>> finish_promise;
+
+        // Only move allowed
+        Task()                  = default;
+        Task(Task&&)            = default;
+        Task& operator=(Task&&) = default;
+
+        // Copy is prohibited
+        Task(const Task&)            = delete;
+        Task& operator=(const Task&) = delete;
     };
 
     virtual ~ITasksQueue() = default;
@@ -29,7 +38,7 @@ public:
     virtual bool Empty() const = 0;
     // Thread safe call
     virtual size_t              Size() const = 0;
-    virtual std::optional<Task> TakeFront()   = 0;
+    virtual std::optional<Task> TakeFront()  = 0;
     // If task not emplaced - it's not moved (like std::map::try_emplace)
     virtual IWorker::TaskUid EmplaceBack(const bool _replace, Task&& _task) = 0;
     // If task not emplaced - it's not moved (like std::map::try_emplace)

@@ -174,7 +174,7 @@ namespace xbase::impl {
         if (executed_task_id_.load() != xbase::kInvalidUid || !tasks_queue_->Empty())
             return State::kBusy;
 
-        return worker_thread_p_ ? State::kIdle : State::kStopped;
+        return thread_alive_.load() ? State::kIdle : State::kStopped;
     }
 
     size_t WorkerImpl::TasksTotal_() const
@@ -213,6 +213,8 @@ namespace xbase::impl {
     void WorkerImpl::ThreadRun_()
     {
         JoinExpired_();
+
+        thread_alive_.store(true);
 
         if (on_started_pf_)
             on_started_pf_(this);
@@ -274,6 +276,8 @@ namespace xbase::impl {
                 break;
             }
         }
+
+        thread_alive_.store(false);
 
         if (on_finished_pf_)
             on_finished_pf_(this);

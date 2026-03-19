@@ -29,6 +29,7 @@ private:
     std::unique_ptr<std::thread> worker_thread_p_;
     std::unique_ptr<std::thread> expired_thread_p_;
     std::atomic<bool>            joined_ = {false};
+    std::atomic<bool>            thread_alive_ = {false};
 
     std::atomic<IWorker::TaskUid> executed_task_id_ = {xbase::kInvalidUid};
 

@@ -21,9 +21,12 @@
 
 #pragma once
 
+#include "xbase/strings.h"
+
 #include <cassert>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace xsdk {
@@ -65,12 +68,10 @@ class XEnumReflector {
         };
         std::vector<Enumerator> values;
         std::string             enum_name;
+        
+        // TODO: (the common part of all enums values)
+        std::string prefix;
     };
-
-    static bool IsIdentChar(char c)
-    {
-        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || (c == '_');
-    }
 
 public:
     // On destructior set global flag
@@ -89,91 +90,14 @@ public:
         static bool IsClosed() { return closed_; }
     };
 
-public:
-    // Returns a reference to XEnumReflector object which can be used
-    // to retrieve information about the enumeration declared with XENUM or XENUM_NS
-    template <typename EnumType>
-    static const XEnumReflector& For(EnumType _val = EnumType());
-
-    template <typename EnumType>
-    static bool IsClosed()
+    static bool IsIdentChar(char c)
     {
-        return CloseDetectorImpl<EnumType>::IsClosed();
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || (c == '_');
     }
 
-    // Represents an enumerator (value) of an enumeration
-    class Enumerator {
-    public:
-        // Returns enumerator name
-        const std::string& Name() const { return reflector_.data_->values[index_].name; }
-
-        // Returns enumerator value
-        int32_t Value() const { return reflector_.data_->values[index_].value; }
-
-        // Returns enumerator index
-        int32_t Index() const;
-
-        // Returns parent reflector object
-        const XEnumReflector& Reflector() const;
-
-        // Check if this is an valid Enumerator
-        bool IsValid() const;
-        operator bool() const;
-
-        // Check if two objects are the same
-        bool operator!=(const Enumerator& rhs) const;
-
-        // Moves on to the next Enumerator in enum
-        Enumerator& operator++();
-
-        // Provided for compatibility with range-based for construct
-        const Enumerator& operator*() const;
-
-    private:
-        friend class XEnumReflector;
-        Enumerator(const XEnumReflector&, int32_t);
-        const XEnumReflector& reflector_;
-        int32_t               index_;
-    };
-
-    // Returns Enumerator count
-    int32_t Count() const { return (int32_t)data_->values.size(); }
-
-    // Returns an Enumerator with specified name or invalid Enumerator if not found
-    Enumerator Find(const std::string& name) const
-    {
-        for (int32_t i = 0; i < (int32_t)data_->values.size(); ++i) {
-            if (data_->values[i].name == name)
-                return At(i);
-        }
-        return end();
-    }
-
-    // Returns an Enumerator with specified value or invalid Enumerator if not found
-    Enumerator Find(int32_t value) const
-    {
-        for (int32_t i = 0; i < (int32_t)data_->values.size(); ++i) {
-            if (data_->values[i].value == value)
-                return At(i);
-        }
-        return end();
-    }
-
-    // Returns the enumeration name
-    const std::string& EnumName() const { return data_->enum_name; }
-
-    // Returns Enumerator at specified index
-    Enumerator At(int32_t index) const;
-    Enumerator operator[](int32_t index) const;
-
-    // In some cases Enumerators can be used as iterators. The following functions
-    // are provided e.g. for compatibility with range-based for construct:
-
-    // Returns the first Enumerator
-    Enumerator begin() const;
-
-    // Returns an invalid Enumerator
-    Enumerator end() const;
+private:
+    Private*                        data_;
+    std::unique_ptr<ICloseDetector> close_p_;
 
 public:
     // Constructor. Used internally by XENUM and XENUM_NS
@@ -247,11 +171,96 @@ public:
 
         close_p_.reset();
     }
+
     XEnumReflector(XEnumReflector&&) noexcept;
 
-private:
-    Private*                        data_;
-    std::unique_ptr<ICloseDetector> close_p_;
+public:
+    // Returns a reference to XEnumReflector object which can be used
+    // to retrieve information about the enumeration declared with XENUM or XENUM_NS
+    template <typename EnumType>
+    static const XEnumReflector& For(EnumType _val = EnumType());
+
+    template <typename EnumType>
+    static bool IsClosed()
+    {
+        return CloseDetectorImpl<EnumType>::IsClosed();
+    }
+
+    // Represents an enumerator (value) of an enumeration
+    class Enumerator {
+    public:
+        // Returns enumerator name
+        const std::string& Name() const { return reflector_.data_->values[index_].name; }
+
+        // Returns enumerator value
+        int32_t Value() const { return reflector_.data_->values[index_].value; }
+
+        // Returns enumerator index
+        int32_t Index() const;
+
+        // Returns parent reflector object
+        const XEnumReflector& Reflector() const;
+
+        // Check if this is an valid Enumerator
+        bool IsValid() const;
+        operator bool() const;
+
+        // Check if two objects are the same
+        bool operator!=(const Enumerator& rhs) const;
+
+        // Moves on to the next Enumerator in enum
+        Enumerator& operator++();
+
+        // Provided for compatibility with range-based for construct
+        const Enumerator& operator*() const;
+
+    private:
+        friend class XEnumReflector;
+        Enumerator(const XEnumReflector&, int32_t);
+        const XEnumReflector& reflector_;
+        int32_t               index_;
+    };
+
+    // Returns Enumerator count
+    int32_t Count() const { return (int32_t)data_->values.size(); }
+
+    // Returns an Enumerator with specified name or invalid Enumerator if not found
+    Enumerator Find(const std::string_view _name) const
+    {
+        for (int32_t i = 0; i < (int32_t)data_->values.size(); ++i) {
+            if (data_->values[i].name == _name)
+                return At(i);
+        }
+        return end();
+    }
+
+    // Returns an Enumerator with specified value or invalid Enumerator if not found
+    Enumerator Find(int32_t value) const
+    {
+        for (int32_t i = 0; i < (int32_t)data_->values.size(); ++i) {
+            if (data_->values[i].value == value)
+                return At(i);
+        }
+        return end();
+    }
+
+    // Returns the enumeration name
+    const std::string& EnumName() const { return data_->enum_name; }
+
+    // Returns Enumerator at specified index
+    Enumerator At(int32_t index) const;
+    Enumerator operator[](int32_t index) const;
+
+    // In some cases Enumerators can be used as iterators. The following functions
+    // are provided e.g. for compatibility with range-based for construct:
+
+    // Returns the first Enumerator
+    Enumerator begin() const;
+
+    // Returns an invalid Enumerator
+    Enumerator end() const;
+
+
 };
 
 namespace xenum {
@@ -275,7 +284,9 @@ namespace xenum {
     };
 
     template <class TEnum>
-    inline std::string ToString(const TEnum& _enum_val, const std::string_view _default = {})
+    std::string ToString(const TEnum&           _enum_val,
+                         const std::string_view _default        = {},
+                         const std::string_view _removed_prefix = {})
     {
         if (XEnumReflector::IsClosed<TEnum>())
             return "###Err### XENUM:" + std::string(xbase::TypeName<TEnum>()) + " Destroyed";
@@ -284,8 +295,15 @@ namespace xenum {
 
         const auto& reflector = XEnumReflector::For<TEnum>();
         auto        enum_val  = reflector.Find(int_val);
-        if (enum_val.IsValid())
+        if (enum_val.IsValid()) {
+            if (!_removed_prefix.empty()) {
+                std::string wo_prefix;
+                if (xbase::strings::StrIsPrefix(enum_val.Name(), _removed_prefix, &wo_prefix))
+                    return wo_prefix;
+            }
+
             return enum_val.Name();
+        }
 
         if (!_default.empty())
             return std::string(_default);
@@ -295,9 +313,9 @@ namespace xenum {
     }
 
     template <class TEnum>
-    inline std::optional<TEnum> FromString(const std::string& _str_value, const std::optional<TEnum> _default = {})
+    std::optional<TEnum> FromStringOne(const std::string_view _str_value, const std::optional<TEnum> _default = {})
     {
-        if (XEnumReflector::IsClosed<TEnum>())
+        if (XEnumReflector::IsClosed<TEnum>() || _str_value.empty())
             return _default;
 
         const auto& reflector = XEnumReflector::For<TEnum>();
@@ -305,11 +323,31 @@ namespace xenum {
         if (enum_val.IsValid())
             return static_cast<TEnum>(enum_val.Value());
 
+        // Special fix for 'k' prefix
+        if (_str_value[0] != 'k') {
+            auto enum_val = reflector.Find(std::string("k").append(_str_value));
+            if (enum_val.IsValid())
+                return static_cast<TEnum>(enum_val.Value());
+        }
+
         return _default;
     }
 
     template <class TEnum>
-    inline TEnum FromString(const std::string& _str_value, const TEnum& _default)
+    std::optional<TEnum> FromString(const std::string_view& _str_value, const std::optional<TEnum> _default = {})
+    {
+        std::optional<TEnum> result;
+        for (const auto token : xbase::strings::StrSplit(_str_value, '|', true)) {
+            auto enum_val = FromStringOne<TEnum>(token);
+            if (enum_val.has_value())
+                result = result.value_or(enum_val.value()) | enum_val.value();
+        }
+
+        return result;
+    }
+
+    template <class TEnum>
+    inline TEnum FromString(const std::string_view _str_value, const TEnum& _default)
     {
         return FromString<TEnum>(_str_value).value_or(_default);
     }

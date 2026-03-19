@@ -22,6 +22,9 @@ XENUM_CLASS(SockStatusTest,
 
             RECONNECT = 0x100,
 
+            kNotValid = 0x1000,
+            kChecking = 0x2000,
+
             RECONNECT_INIT       = RECONNECT | INIT,
             RECONNECT_OPENED     = RECONNECT | OPENED,
             RECONNECT_LISTENING  = RECONNECT | LISTENING,
@@ -64,4 +67,49 @@ TEST(xenum_tests, enum_basic)
     EXPECT_EQ(wrong_str, "xtest::SockStatusTest(99)");
     wrong_str = xenum::ToString(SockStatusTest(99), "WRONG");
     EXPECT_EQ(wrong_str, "WRONG");
+}
+
+TEST(xenum_tests, enum_complex)
+{
+    using namespace xtest;
+
+    auto test = xenum::FromString<SockStatusTest>("OPENED|CLOSING|RECONNECT");
+    ASSERT_TRUE(test.has_value());
+    EXPECT_EQ(test.value(), SockStatusTest::OPENED | SockStatusTest::CLOSING | SockStatusTest::RECONNECT);
+
+    test = xenum::FromString<SockStatusTest>("|OPENED||CLOSING|RECONNECT");
+    ASSERT_TRUE(test.has_value());
+    EXPECT_EQ(test.value(), SockStatusTest::OPENED | SockStatusTest::CLOSING | SockStatusTest::RECONNECT);
+
+    test = xenum::FromString<SockStatusTest>("INIT|OPENED|CLOSING RECONNECT");
+    ASSERT_TRUE(test.has_value());
+    EXPECT_EQ(test.value(), SockStatusTest::OPENED | SockStatusTest::INIT);
+
+    test = xenum::FromString<SockStatusTest>("OPENED|CLOSING_XXX|RECONNECT|");
+    ASSERT_TRUE(test.has_value());
+    EXPECT_EQ(test.value(), SockStatusTest::OPENED | SockStatusTest::RECONNECT);
+
+    test = xenum::FromString<SockStatusTest>("ZZZ||CLOSING_XXX");
+    EXPECT_FALSE(test.has_value());
+
+    test = xenum::FromString<SockStatusTest>({});
+    EXPECT_FALSE(test.has_value());
+}
+
+TEST(xenum_tests, enum_complex_prefix)
+{
+    using namespace xtest;
+
+    auto test = xenum::FromString<SockStatusTest>("kNotValid");
+    ASSERT_TRUE(test.has_value());
+    EXPECT_EQ(test.value(), SockStatusTest::kNotValid);
+
+    test = xenum::FromString<SockStatusTest>("NotValid|kChecking|OPENED");
+    ASSERT_TRUE(test.has_value());
+    EXPECT_EQ(test.value(), SockStatusTest::kNotValid | SockStatusTest::kChecking | SockStatusTest::OPENED);
+
+    test = xenum::FromString<SockStatusTest>("NotValid|Checking|kOPENED");
+    ASSERT_TRUE(test.has_value());
+    EXPECT_EQ(test.value(), SockStatusTest::kNotValid | SockStatusTest::kChecking);
+
 }

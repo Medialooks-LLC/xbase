@@ -460,14 +460,21 @@ TEST(xclock_tests, wait_with_cancel)
 
     int                     msec_wait = 100;
     std::condition_variable cv_event;
+    static std::mutex       cout_mutex;
 
     std::thread wait_thread([&]() {
         std::tie(real, expt) = xclock::EventWaitClockTime(cv_event, nullptr, clock_p.get(), wait_till);
-        std::cout << "wait_with_cancel Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(cout_mutex);
+            std::cout << "wait_with_cancel Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
+        }
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(msec_wait));
-    std::cout << "wait_with_cancel Notify" << std::endl;
+    {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cout << "wait_with_cancel Notify" << std::endl;
+    }
     cv_event.notify_all();
     wait_thread.join();
 
@@ -487,15 +494,19 @@ TEST(xclock_tests, wait_with_cancel_mtx)
     std::mutex              mtx;
     std::unique_lock        lck_outer(mtx);
 
+    bool thread_started = false;
+
     std::thread wait_thread([&]() {
         std::unique_lock lck_inner(mtx);
+
+        thread_started = true;
         cv_event.notify_all();
         std::tie(real, expt) = xclock::EventWaitClockTime(cv_event, &lck_inner, clock_p.get(), wait_till);
         std::cout << "wait_with_cancel_mtx Wait:" << time64::ToMsec(real) << " / " << time64::ToMsec(expt) << std::endl;
     });
 
     // Wait till thread started (unlock mutex while wait)
-    cv_event.wait(lck_outer);
+    cv_event.wait(lck_outer, [&] { return thread_started; });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(msec_wait));
     std::cout << "wait_with_cancel_mtx Notify" << std::endl;
@@ -505,7 +516,7 @@ TEST(xclock_tests, wait_with_cancel_mtx)
     wait_thread.join();
 
     EXPECT_EQ(expt, time64::kNoVal);
-    EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 30.0);
+    EXPECT_NEAR(time64::ToMsec(real), (double)msec_wait, 30.0);
 }
 
 TEST(xclock_tests, from_duration)

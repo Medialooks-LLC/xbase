@@ -81,6 +81,7 @@ public:
     virtual std::pair<Status, TaskInfo> TaskStatus(const IWorker::TaskUid _task_uid) const override;
     virtual std::pair<TaskRes, std::future<IWorker::FinishType>> CancelTask(const IWorker::TaskUid _task_uid) override;
     virtual TaskRes RescheduleTask(const IWorker::TaskUid _task_uid, const xbase::Time64 _scheduled_time) override;
+    virtual void    DestroyScheduler() override;
 
 private:
     static std::optional<xbase::Time64> Execute_(const ExecutionData& _ed) { return _ed.task_pf(&_ed.task_info); }
@@ -92,8 +93,8 @@ private:
     xbase::Time64          TillNextRT_(const xbase::Time64 _max_wait) const;
     void                   ThreadRun_();
     bool                   WorkerExecute_(ExecutionData&& _execution_data);
-    bool                   ExecutionDone_(const uint64_t                      _task_uid,
-                                          bool                                _is_worker_busy,
+    bool                   ExecutionDone_(const uint64_t                     _task_uid,
+                                          bool                               _is_worker_busy,
                                           const std::optional<xbase::Time64> _repeat_time);
 };
 

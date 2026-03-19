@@ -63,6 +63,10 @@ namespace xbase::impl {
 
         const std::unique_lock lck(mtx_);
 
+        // assert(!stopped_.load());
+        if (stopped_.load())
+            return xbase::kInvalidUid;
+
         if (!thread_p_)
             thread_p_ = std::make_unique<std::thread>([this]() { ThreadRun_(); });
 
@@ -164,6 +168,8 @@ namespace xbase::impl {
         InsertTask_(corrected_time, std::move(nh.mapped()));
         return TaskRes::kOk;
     }
+
+    void SchedulerImpl::DestroyScheduler() { OnDestroy_(); }
 
     IWorker* SchedulerImpl::TaskWorker_(const IWorker::SPtr& _task_worker)
     {
@@ -282,7 +288,7 @@ namespace xbase::impl {
         auto* worker_p    = TaskWorker_(task_worker);
         assert(worker_p);
         auto execution_data_sp = xbase::ToShared(std::move(_execution_data));
-        auto check_task_uid = worker_p->TaskPut(
+        auto check_task_uid    = worker_p->TaskPut(
             [this, execution_data_sp]() mutable {
                 auto repeat_rt = Execute_(*execution_data_sp);
                 if (repeat_rt.has_value() && repeat_rt.value() <= clock_p_->Time() + kAdvance64) {
@@ -302,8 +308,8 @@ namespace xbase::impl {
         return check_task_uid != xbase::kInvalidUid;
     }
 
-    bool SchedulerImpl::ExecutionDone_(const uint64_t                      _task_uid,
-                                       bool                                _is_worker_busy,
+    bool SchedulerImpl::ExecutionDone_(const uint64_t                     _task_uid,
+                                       bool                               _is_worker_busy,
                                        const std::optional<xbase::Time64> _repeat_time)
     {
         // Task could be removed from executing_tasks if it's canceled

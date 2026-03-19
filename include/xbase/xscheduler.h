@@ -132,6 +132,12 @@ namespace xbase {
          * @warning Wait future is not applicable for tasks without workers
          */
         virtual std::pair<TaskRes, std::future<IWorker::FinishType>> CancelTask(const IWorker::TaskUid _task_id) = 0;
+
+        /**
+         * @brief Cancel all tasks & close scheduler
+         */
+        virtual void DestroyScheduler() = 0;
+
     };
 } // namespace xbase
 

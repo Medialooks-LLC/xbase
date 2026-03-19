@@ -215,7 +215,7 @@ TEST(xworker_tests, pool_try_add_more_tasks_then_max)
     ASSERT_EQ(task_id, xbase::kInvalidUid);
 }
 
-TEST(xworker_tests, pool_try_check_preffered_workers) // test used only for code coverage and should not crashed
+TEST(xworker_tests, pool_try_check_preferred_workers) // test used only for code coverage and should not crashed
 {
     auto pool_p = xworker::CreatePool(4, 8, 30 * 1000, 0);
 
@@ -255,8 +255,10 @@ TEST(xworker_tests, worker_tasks_count)
     [[maybe_unused]] auto val         = future.get();
     auto                  count_tasks = worker_p->WorkerStatus();
 
-    EXPECT_EQ(count_tasks.executing_tasks, 1) << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
-    EXPECT_TRUE(count_tasks.awaiting_tasks > 1) << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
+    EXPECT_EQ(count_tasks.executing_tasks, 1)
+        << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
+    EXPECT_TRUE(count_tasks.awaiting_tasks > 1)
+        << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
 }
 
 TEST(xworker_tests, pool_tasks_count)
@@ -277,8 +279,10 @@ TEST(xworker_tests, pool_tasks_count)
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
     auto count_tasks = pool_p->WorkerStatus();
-    EXPECT_EQ(count_tasks.executing_tasks, 8) << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
-    EXPECT_TRUE(count_tasks.awaiting_tasks > 1) << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
+    EXPECT_EQ(count_tasks.executing_tasks, 8)
+        << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
+    EXPECT_TRUE(count_tasks.awaiting_tasks > 1)
+        << "WorkerStatus: " << count_tasks.executing_tasks << ", " << count_tasks.awaiting_tasks;
 }
 
 TEST(xworker_tests, worker_task_cancel_invalid_uid)
@@ -356,11 +360,11 @@ TEST(xworker_tests, worker_get_max_tasks)
 
 TEST(xworker_tests, worker_init_finish)
 {
-    std::atomic_bool      init_called   = {false};
-    std::atomic_bool      finish_called = {false};
-    std::atomic_bool      task_called   = {false};
-    const xbase::IWorker* check_in      = nullptr;
-    const xbase::IWorker* check_out     = nullptr;
+    std::atomic_bool                   init_called   = {false};
+    std::atomic_bool                   finish_called = {false};
+    std::atomic_bool                   task_called   = {false};
+    std::atomic<const xbase::IWorker*> check_in      = {nullptr};
+    std::atomic<const xbase::IWorker*> check_out     = {nullptr};
 
     auto worker_p = xworker::CreateWorker(
         {},
@@ -368,11 +372,11 @@ TEST(xworker_tests, worker_init_finish)
         {},
         [&](const auto* _worker_p) {
             init_called.store(true);
-            check_in = _worker_p;
+            check_in.store(_worker_p);
         },
         [&](const auto* _worker_p) {
             finish_called.store(true);
-            check_out = _worker_p;
+            check_out.store(_worker_p);
         });
 
     worker_p->TaskPut([&]() {
@@ -386,8 +390,8 @@ TEST(xworker_tests, worker_init_finish)
     EXPECT_TRUE(task_called.load());
     EXPECT_TRUE(finish_called.load());
 
-    EXPECT_EQ(check_in, worker_p.get());
-    EXPECT_EQ(check_out, worker_p.get());
+    EXPECT_EQ(check_in.load(), worker_p.get());
+    EXPECT_EQ(check_out.load(), worker_p.get());
 }
 
 TEST(xworker_tests, pool_get_max_tasks)
@@ -444,7 +448,7 @@ TEST(xworker_tests, pool_tasks_cancel)
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-   auto sts = pool_p->WorkerStatus();
+    auto sts = pool_p->WorkerStatus();
     EXPECT_EQ(sts.executing_tasks, counters.size()) << "Wrong executing task counter";
     EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong await task counter";
 
@@ -460,7 +464,7 @@ TEST(xworker_tests, pool_tasks_cancel)
     // Future is set before number of tasks decreased
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-   sts = pool_p->WorkerStatus();
+    sts = pool_p->WorkerStatus();
     EXPECT_EQ(sts.executing_tasks, 0) << "Wrong executing task counter (after cancel)";
     EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong sts.awaiting_tasks task counter (after cancel)";
 
@@ -486,6 +490,10 @@ TEST(xworker_tests, pool_tasks_cancel_all)
 
     auto pool_p = xworker::CreatePool(0, counters.size(), 300);
 
+    auto sts = pool_p->WorkerStatus();
+    EXPECT_EQ(sts.executing_tasks, 0) << "Wrong executing task counter (at start)";
+    EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong await task counter (at start)";
+
     std::vector<xbase::IWorker::TaskUid> task_uids;
     for (size_t z = 0; z < counters.size(); ++z) {
         auto task_uid = pool_p->TaskPut([=]() { return pool_task_pf(z); });
@@ -495,9 +503,12 @@ TEST(xworker_tests, pool_tasks_cancel_all)
             task_uids.push_back(task_uid);
     }
 
+    sts = pool_p->WorkerStatus();
+    EXPECT_GE(sts.executing_tasks, counters.size()) << "Wrong executing task counter";
+    
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto sts = pool_p->WorkerStatus();
+    sts = pool_p->WorkerStatus();
     EXPECT_EQ(sts.executing_tasks, counters.size()) << "Wrong executing task counter";
     EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong await task counter";
 
@@ -508,7 +519,9 @@ TEST(xworker_tests, pool_tasks_cancel_all)
         check_counters[z] = counters[z].load();
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // Task canceled right after TaskCancelAll() call, BUT executing now updated a bit later, thus, sleep a bit
+    // TODO: Use something like std::shared_ptr<std::atomic<size_t>> + Wrapper passed into task lambda
+    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     sts = pool_p->WorkerStatus();
     EXPECT_EQ(sts.executing_tasks, 0) << "Wrong executing task counter (after cancel)";
@@ -549,7 +562,8 @@ TEST(xworker_tests, pool_tasks_cancel_with_deq)
 
     auto sts = pool_p->WorkerStatus();
     EXPECT_EQ(sts.executing_tasks, counters.size() / 2) << "Wrong executing task counter";
-    EXPECT_EQ(sts.executing_tasks + sts.awaiting_tasks, counters.size()) << "Wrong executing/sts.awaiting_tasks task counter";
+    EXPECT_EQ(sts.executing_tasks + sts.awaiting_tasks, counters.size())
+        << "Wrong executing/sts.awaiting_tasks task counter";
 
     size_t                        executing      = 0;
     std::array<std::uint64_t, 16> check_counters = {};
@@ -573,7 +587,7 @@ TEST(xworker_tests, pool_tasks_cancel_with_deq)
     // Future is set before number of tasks decreased
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-     sts = pool_p->WorkerStatus();
+    sts = pool_p->WorkerStatus();
     EXPECT_EQ(sts.executing_tasks, 0) << "Wrong executing task counter (after cancel)";
     EXPECT_EQ(sts.awaiting_tasks, 0) << "Wrong sts.awaiting_tasks task counter (after cancel)";
 
@@ -585,7 +599,7 @@ TEST(xworker_tests, pool_tasks_cancel_with_deq)
 
 TEST(xworker_tests, pool_execute_sync)
 {
-    volatile bool                        stop     = false;
+    std::atomic<bool>                    stop     = false;
     std::array<std::atomic_uint64_t, 16> counters = {};
     std::vector<std::string>             descs;
 
@@ -653,7 +667,7 @@ TEST(xworker_tests, pool_execute_sync)
 
 TEST(xworker_tests, pool_execute_sync_lack_workers)
 {
-    volatile bool                        stop     = false;
+    std::atomic<bool>                    stop     = false;
     std::array<std::atomic_uint64_t, 16> counters = {};
     std::vector<std::string>             descs;
 
@@ -722,7 +736,7 @@ TEST(xworker_tests, pool_execute_sync_lack_workers)
 
 TEST(xworker_tests, performanace_compare_sync)
 {
-    volatile bool                        stop     = false;
+    std::atomic<bool>                    stop     = false;
     std::array<std::atomic_uint64_t, 16> counters = {};
     std::vector<std::string>             descs;
 
@@ -814,7 +828,7 @@ TEST(xworker_tests, performanace_compare_sync)
 
 TEST(xworker_tests, performanace_compare_async)
 {
-    volatile bool                        stop     = false;
+    std::atomic<bool>                    stop     = false;
     std::array<std::atomic_uint64_t, 16> counters = {};
     std::vector<std::string>             descs;
 
