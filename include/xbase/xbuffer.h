@@ -54,6 +54,7 @@ namespace xbase {
 } // namespace xbase
 
 namespace xbuffer {
+
     /**
      * @brief check for string buffer (kString or kStringView)
      */
@@ -62,8 +63,12 @@ namespace xbuffer {
      * @brief check for binary buffer (kBinary or kBinaryWritable)
      */
     bool IsBinary(const xbase::IBuffer* _data_buffer_p);
+
+    inline constexpr std::string_view kNull   = "null";
+    inline constexpr std::string_view kBinary = "bin";
+
     /**
-     * @brief check for string buffer (kString or kStringView) and return buffer string
+     * @brief check for string buffer (kString or kStringView) and return buffer string, or kNull/kBinary if not string
      */
     std::string ToString(const xbase::IBuffer* _data_buffer_p);
     /**
@@ -73,8 +78,8 @@ namespace xbuffer {
     /**
      * @brief create string buffer from std::string_view with holder
      */
-    xbase::IBuffer::SPtr CreateStringBuffer(std::any&&              _holder,
-                                            const std::string_view& _string,
+    xbase::IBuffer::SPtr CreateStringBuffer(std::any&&                      _holder,
+                                            const std::string_view&         _string,
                                             const std::optional<xbase::Uid> _object_uid = {});
     /**
      * @brief create data buffer - for writable buffer keep _holder empty

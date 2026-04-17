@@ -527,3 +527,363 @@ TEST(xscheduler_test, scheduler_destroy)
 
     EXPECT_EQ(cnt, counter.load()) << "Task executed after DestroyScheduler()";
 }
+
+TEST(xscheduler_test, scheduled_time_null_scheduler)
+{
+    EXPECT_EQ(xscheduler::ScheduledTime(nullptr, 1.5), time64::kNoVal);
+}
+
+TEST(xscheduler_test, scheduled_time_relative_seconds)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    const auto now = scheduler_p->Clock()->Time();
+    const auto ts  = xscheduler::ScheduledTime(scheduler_p.get(), 1.5);
+
+    EXPECT_GE(ts, now + time64::FromSec(1.4));
+    EXPECT_LE(ts, now + time64::FromSec(1.6));
+}
+
+TEST(xscheduler_test, is_active_task_invalid_uid)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    EXPECT_FALSE(xscheduler::IsActiveTask(scheduler_p.get(), xbase::kInvalidUid));
+}
+
+TEST(xscheduler_test, is_active_task_scheduled)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    auto task_uid = scheduler_p->ScheduleTask(time64::kDay, [&](const xbase::IScheduler::TaskInfo* _task_info) {
+        return std::nullopt;
+    });
+
+    ASSERT_NE(task_uid, xbase::kInvalidUid);
+
+    EXPECT_TRUE(xscheduler::IsActiveTask(scheduler_p.get(), task_uid));
+
+    auto [res, future] = scheduler_p->CancelTask(task_uid);
+    EXPECT_EQ(res, xbase::IScheduler::TaskRes::kOk);
+    if (future.valid())
+        future.wait();
+}
+
+TEST(xscheduler_test, is_active_task_finished)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    auto [task_uid, task_future] = xscheduler::ScheduleTask<int>(scheduler_p.get(), time64::kPast, []() { return 10; });
+
+    ASSERT_NE(task_uid, xbase::kInvalidUid);
+    EXPECT_EQ(task_future.get(), 10);
+
+    EXPECT_FALSE(xscheduler::IsActiveTask(scheduler_p.get(), task_uid));
+}
+
+TEST(xscheduler_test, reschedule_task_no_later_than_invalid_args)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    EXPECT_FALSE(xscheduler::RescheduleTaskNoLaterThan(nullptr, 123, time64::kSecond).has_value());
+    EXPECT_FALSE(
+        xscheduler::RescheduleTaskNoLaterThan(scheduler_p.get(), xbase::kInvalidUid, time64::kSecond).has_value());
+}
+
+TEST(xscheduler_test, reschedule_task_no_later_than_not_found)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    EXPECT_FALSE(xscheduler::RescheduleTaskNoLaterThan(scheduler_p.get(), 123456, time64::kSecond).has_value());
+}
+
+TEST(xscheduler_test, reschedule_task_no_later_than_keep_existing_time)
+{
+    xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
+
+    const auto initial_time = scheduler_p->Clock()->Time() + time64::FromMsec(100.0);
+    auto       task_uid = scheduler_p->ScheduleTask(initial_time, [&](const xbase::IScheduler::TaskInfo* _task_info) {
+        return std::nullopt;
+    });
+
+    ASSERT_NE(task_uid, xbase::kInvalidUid);
+
+    const auto later_time     = scheduler_p->Clock()->Time() + time64::FromMsec(500.0);
+    auto       effective_time = xscheduler::RescheduleTaskNoLaterThan(scheduler_p.get(), task_uid, later_time);
+
+    ASSERT_TRUE(effective_time.has_value());
+    EXPECT_EQ(*effective_time, initial_time);
+
+    auto [status, info] = scheduler_p->TaskStatus(task_uid);
+    EXPECT_EQ(status, xbase::IScheduler::Status::kScheduled);
+    EXPECT_EQ(info.scheduled_time, initial_time);
+
+    auto [res, future] = scheduler_p->CancelTask(task_uid);
+    EXPECT_EQ(res, xbase::IScheduler::TaskRes::kOk);
+    if (future.valid())
+        future.wait();
+}
+
+TEST(xscheduler_test, reschedule_task_no_later_than_move_earlier)
+{
+    xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
+
+    const auto late_time = scheduler_p->Clock()->Time() + time64::FromMsec(1000.0);
+    auto       task_uid  = scheduler_p->ScheduleTask(late_time, [&](const xbase::IScheduler::TaskInfo* _task_info) {
+        return std::nullopt;
+    });
+
+    ASSERT_NE(task_uid, xbase::kInvalidUid);
+
+    const auto earlier_time   = scheduler_p->Clock()->Time() + time64::FromMsec(100.0);
+    auto       effective_time = xscheduler::RescheduleTaskNoLaterThan(scheduler_p.get(), task_uid, earlier_time);
+
+    ASSERT_TRUE(effective_time.has_value());
+    EXPECT_EQ(*effective_time, earlier_time);
+
+    auto [status, info] = scheduler_p->TaskStatus(task_uid);
+    EXPECT_EQ(status, xbase::IScheduler::Status::kScheduled);
+    EXPECT_EQ(info.scheduled_time, earlier_time);
+
+    auto [res, future] = scheduler_p->CancelTask(task_uid);
+    EXPECT_EQ(res, xbase::IScheduler::TaskRes::kOk);
+    if (future.valid())
+        future.wait();
+}
+
+TEST(xscheduler_test, reschedule_task_no_later_than_executing_now)
+{
+    xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
+
+    std::promise<void> started_promise;
+    auto               started = started_promise.get_future();
+
+    auto task_uid = scheduler_p->ScheduleTask(time64::kPast, [&](const xbase::IScheduler::TaskInfo* _task_info) {
+        started_promise.set_value();
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        return std::nullopt;
+    });
+
+    ASSERT_NE(task_uid, xbase::kInvalidUid);
+
+    started.wait();
+
+    auto [status_before, info_before] = scheduler_p->TaskStatus(task_uid);
+    ASSERT_EQ(status_before, xbase::IScheduler::Status::kExecutingNow);
+
+    auto effective_time = xscheduler::RescheduleTaskNoLaterThan(scheduler_p.get(),
+                                                                task_uid,
+                                                                scheduler_p->Clock()->Time());
+
+    ASSERT_TRUE(effective_time.has_value());
+    EXPECT_EQ(*effective_time, info_before.scheduled_time);
+
+    auto [res, future] = scheduler_p->CancelTask(task_uid);
+    EXPECT_EQ(res, xbase::IScheduler::TaskRes::kExecutingNow);
+    if (future.valid())
+        future.wait();
+}
+
+TEST(xscheduler_test, run_task_no_later_than_schedule_new)
+{
+    xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
+
+    std::atomic<xbase::Uid> atomic_task_uid = xbase::kInvalidUid;
+
+    const auto scheduled_time = scheduler_p->Clock()->Time() + time64::FromMsec(300.0);
+    auto       res            = xscheduler::RunTaskNoLaterThan(
+        atomic_task_uid,
+        scheduler_p.get(),
+        scheduled_time,
+        [&](const xbase::IScheduler::TaskInfo* _task_info) { return std::nullopt; });
+
+    EXPECT_EQ(res.status, xscheduler::ScheduleTaskStatus::kScheduledNew);
+    EXPECT_NE(res.active_task_uid, xbase::kInvalidUid);
+    EXPECT_EQ(atomic_task_uid.load(), res.active_task_uid);
+
+    auto [status, info] = scheduler_p->TaskStatus(res.active_task_uid);
+    EXPECT_EQ(status, xbase::IScheduler::Status::kScheduled);
+    EXPECT_EQ(info.scheduled_time, scheduled_time);
+
+    auto [cancel_res, future] = scheduler_p->CancelTask(res.active_task_uid);
+    EXPECT_EQ(cancel_res, xbase::IScheduler::TaskRes::kOk);
+    if (future.valid())
+        future.wait();
+}
+
+TEST(xscheduler_test, run_task_no_later_than_existing_task_already_active)
+{
+    xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
+
+    std::atomic<xbase::Uid> atomic_task_uid = xbase::kInvalidUid;
+
+    const auto first_time = scheduler_p->Clock()->Time() + time64::FromMsec(100.0);
+    auto       first_res  = xscheduler::RunTaskNoLaterThan(
+        atomic_task_uid,
+        scheduler_p.get(),
+        first_time,
+        [&](const xbase::IScheduler::TaskInfo* _task_info) { return std::nullopt; });
+
+    ASSERT_EQ(first_res.status, xscheduler::ScheduleTaskStatus::kScheduledNew);
+    ASSERT_NE(first_res.active_task_uid, xbase::kInvalidUid);
+
+    const auto later_time = scheduler_p->Clock()->Time() + time64::FromMsec(500.0);
+    auto       second_res = xscheduler::RunTaskNoLaterThan(
+        atomic_task_uid,
+        scheduler_p.get(),
+        later_time,
+        [&](const xbase::IScheduler::TaskInfo* _task_info) { return std::nullopt; });
+
+    EXPECT_EQ(second_res.status, xscheduler::ScheduleTaskStatus::kAlreadyActive);
+    EXPECT_EQ(second_res.active_task_uid, first_res.active_task_uid);
+    EXPECT_EQ(atomic_task_uid.load(), first_res.active_task_uid);
+
+    auto [status, info] = scheduler_p->TaskStatus(first_res.active_task_uid);
+    EXPECT_EQ(status, xbase::IScheduler::Status::kScheduled);
+    EXPECT_EQ(info.scheduled_time, first_time);
+
+    auto [cancel_res, future] = scheduler_p->CancelTask(first_res.active_task_uid);
+    EXPECT_EQ(cancel_res, xbase::IScheduler::TaskRes::kOk);
+    if (future.valid())
+        future.wait();
+}
+
+TEST(xscheduler_test, run_task_no_later_than_existing_task_rescheduled_earlier)
+{
+    xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
+
+    std::atomic<xbase::Uid> atomic_task_uid = xbase::kInvalidUid;
+
+    const auto late_time = scheduler_p->Clock()->Time() + time64::FromMsec(1000.0);
+    auto       first_res = xscheduler::RunTaskNoLaterThan(
+        atomic_task_uid,
+        scheduler_p.get(),
+        late_time,
+        [&](const xbase::IScheduler::TaskInfo* _task_info) { return std::nullopt; });
+
+    ASSERT_EQ(first_res.status, xscheduler::ScheduleTaskStatus::kScheduledNew);
+    ASSERT_NE(first_res.active_task_uid, xbase::kInvalidUid);
+
+    const auto earlier_time = scheduler_p->Clock()->Time() + time64::FromMsec(100.0);
+    auto       second_res   = xscheduler::RunTaskNoLaterThan(
+        atomic_task_uid,
+        scheduler_p.get(),
+        earlier_time,
+        [&](const xbase::IScheduler::TaskInfo* _task_info) { return std::nullopt; });
+
+    EXPECT_EQ(second_res.status, xscheduler::ScheduleTaskStatus::kAlreadyActive);
+    EXPECT_EQ(second_res.active_task_uid, first_res.active_task_uid);
+    EXPECT_EQ(atomic_task_uid.load(), first_res.active_task_uid);
+
+    auto [status, info] = scheduler_p->TaskStatus(first_res.active_task_uid);
+    EXPECT_EQ(status, xbase::IScheduler::Status::kScheduled);
+    EXPECT_EQ(info.scheduled_time, earlier_time);
+
+    auto [cancel_res, future] = scheduler_p->CancelTask(first_res.active_task_uid);
+    EXPECT_EQ(cancel_res, xbase::IScheduler::TaskRes::kOk);
+    if (future.valid())
+        future.wait();
+}
+
+TEST(xscheduler_test, run_task_no_later_than_existing_task_executing)
+{
+    xbase::IWorker::SPtr worker_p    = xworker::CreateWorker();
+    auto                 scheduler_p = xscheduler::CreateScheduler(nullptr, false, worker_p);
+
+    std::atomic<xbase::Uid> atomic_task_uid = xbase::kInvalidUid;
+    std::promise<void>      started_promise;
+    auto                    started = started_promise.get_future();
+
+    const auto task_uid = scheduler_p->ScheduleTask(time64::kPast, [&](const xbase::IScheduler::TaskInfo* _task_info) {
+        started_promise.set_value();
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        return std::nullopt;
+    });
+
+    ASSERT_NE(task_uid, xbase::kInvalidUid);
+    atomic_task_uid.store(task_uid);
+
+    started.wait();
+
+    auto res = xscheduler::RunTaskNoLaterThan(
+        atomic_task_uid,
+        scheduler_p.get(),
+        scheduler_p->Clock()->Time(),
+        [&](const xbase::IScheduler::TaskInfo* _task_info) { return std::nullopt; });
+
+    EXPECT_EQ(res.status, xscheduler::ScheduleTaskStatus::kAlreadyActive);
+    EXPECT_EQ(res.active_task_uid, task_uid);
+    EXPECT_EQ(atomic_task_uid.load(), task_uid);
+
+    auto [cancel_res, future] = scheduler_p->CancelTask(task_uid);
+    EXPECT_EQ(cancel_res, xbase::IScheduler::TaskRes::kExecutingNow);
+    if (future.valid())
+        future.wait();
+}
+
+TEST(xscheduler_test, stop_task_empty_atomic)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    std::atomic<xbase::Uid> atomic_task_uid = xbase::kInvalidUid;
+
+    auto task_uid = xscheduler::StopTask(atomic_task_uid, scheduler_p.get(), false);
+
+    EXPECT_EQ(task_uid, xbase::kInvalidUid);
+}
+
+TEST(xscheduler_test, stop_task_cancel_scheduled_task)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    std::atomic<xbase::Uid> atomic_task_uid = xbase::kInvalidUid;
+
+    auto task_uid = scheduler_p->ScheduleTask(time64::kDay, [&](const xbase::IScheduler::TaskInfo* _task_info) {
+        return std::nullopt;
+    });
+    ASSERT_NE(task_uid, xbase::kInvalidUid);
+
+    atomic_task_uid.store(task_uid);
+
+    auto stopped_uid = xscheduler::StopTask(atomic_task_uid, scheduler_p.get(), false);
+
+    EXPECT_EQ(stopped_uid, task_uid);
+    EXPECT_EQ(atomic_task_uid.load(), xbase::kInvalidUid);
+    EXPECT_EQ(scheduler_p->TaskStatus(task_uid).first, xbase::IScheduler::Status::kNotFound);
+}
+
+TEST(xscheduler_test, stop_task_wait_for_finish)
+{
+    auto scheduler_p = xscheduler::CreateScheduler(nullptr, false, xworker::CreateWorker());
+
+    std::atomic<xbase::Uid> atomic_task_uid = xbase::kInvalidUid;
+    std::atomic<bool>       finished        = false;
+    std::promise<void>      started_promise;
+    auto                    started = started_promise.get_future();
+
+    auto task_uid = scheduler_p->ScheduleTask(time64::kPast, [&](const xbase::IScheduler::TaskInfo* _task_info) {
+        started_promise.set_value();
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        finished = true;
+        return time64::kPast;
+    });
+    ASSERT_NE(task_uid, xbase::kInvalidUid);
+
+    atomic_task_uid.store(task_uid);
+    started.wait();
+
+    auto stopped_uid = xscheduler::StopTask(atomic_task_uid, scheduler_p.get(), true);
+
+    EXPECT_EQ(stopped_uid, task_uid);
+    EXPECT_EQ(atomic_task_uid.load(), xbase::kInvalidUid);
+    EXPECT_TRUE(finished.load());
+
+    auto status = scheduler_p->TaskStatus(task_uid).first;
+    EXPECT_EQ(status, xbase::IScheduler::Status::kNotFound);
+}

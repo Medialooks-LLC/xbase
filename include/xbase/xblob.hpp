@@ -3,10 +3,9 @@
 #include "holder.hpp"
 #include "xpointers.hpp"
 
-#include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <functional>
 #include <memory>
 #include <vector>
 
@@ -34,17 +33,20 @@ public:
     BlobTyped(BlobTyped&&) = default;
     /// @brief Default copy constructor.
     BlobTyped(const BlobTyped&) = default;
+
     /**
      * @brief Constructor taking size and data.
      * @param _size The size of the data in bytes.
      * @param _data A pointer to the data.
      */
     BlobTyped(const size_t _size, TData* _data = nullptr) : size(_size), data(_data) {}
+
     /**
      * @brief Constructor taking std::pair.
      * @param _data A std::pair containing the size and data.
      */
     BlobTyped(std::pair<size_t, TData*>&& _data) : size(_data.first), data(_data.second) {}
+
     /**
      * @brief Constructor taking std::vector.
      * @param _vec_p A pointer to the std::vector.
@@ -52,6 +54,7 @@ public:
     BlobTyped(std::vector<TData>* _vec_p) : size(_vec_p ? _vec_p->size() : 0), data(_vec_p ? _vec_p->data() : nullptr)
     {
     }
+
     BlobTyped& operator=(BlobTyped&&)      = default;
     BlobTyped& operator=(const BlobTyped&) = default;
 
@@ -89,11 +92,13 @@ public:
     BlobTypedC(BlobTypedC&&) = default;
     /// @brief Default copy constructor.
     BlobTypedC(const BlobTypedC&) = default;
+
     /**
      * @brief Copy constructor.
      * @param _copy The source to copy from.
      */
     BlobTypedC(const BlobTyped<TData>& _copy) : size(_copy.size), data(_copy.data) {}
+
     /**
      * @brief Constructor taking std::pair.
      * @param _data A std::pair containing the size and constant data.
@@ -106,6 +111,7 @@ public:
      * @param _data A constant pointer to the data.
      */
     BlobTypedC(const size_t _size, const TData* _data = nullptr) : size(_size), data(_data) {}
+
     /**
      * @brief Constructor taking std::vector.
      * @param _vec_p A pointer to the std::vector.
@@ -115,6 +121,7 @@ public:
           data(_vec_p ? _vec_p->data() : nullptr)
     {
     }
+
     BlobTypedC& operator=(BlobTypedC&&)      = default;
     BlobTypedC& operator=(const BlobTypedC&) = default;
 
@@ -129,6 +136,7 @@ public:
         return {size * sizeof(TData) / sizeof(TConvert), reinterpret_cast<const TConvert*>(data)};
     }
 };
+
 /**
  * @typedef XBlob
  * @brief A BlobTyped with uint8_t data type.

@@ -2,9 +2,16 @@
 
 #include <gtest/gtest.h>
 
-using namespace xsdk;
-
+namespace xsdk::xbase::object {
 // NOLINTBEGIN(*)
+
+class INotRegistered {
+public:
+    virtual ~INotRegistered() = default;
+
+    virtual void Unused() = 0;
+};
+
 class ObjectTest final: public IObject, public std::enable_shared_from_this<ObjectTest> {
 
     const uint64_t uid_;
@@ -34,6 +41,7 @@ public:
         }
         return {};
     };
+
     std::any QueryPtrC(xbase::Uid _type_query) const override
     {
         try {
@@ -50,9 +58,75 @@ public:
         return {};
     };
 
-    void             NameSet(std::string_view _name) { name_ = _name; };
+    void NameSet(std::string_view _name) { name_ = _name; };
+
     std::string_view NameGet() const { return name_; };
 };
+
+class IDerived: public IObject {
+public:
+    virtual void             NameSet(std::string_view _name) = 0;
+    virtual std::string_view NameGet() const                 = 0;
+};
+
+class IDerived2: public IDerived {
+public:
+    virtual void             NameSet2(std::string_view _name) = 0;
+    virtual std::string_view NameGet2() const                 = 0;
+};
+
+class IExtra {
+public:
+    virtual ~IExtra() = default;
+
+    virtual void             NameExtraSet(std::string_view _name) = 0;
+    virtual std::string_view NameExtraGet() const                 = 0;
+};
+
+class Derived2: public xbase::ObjectBase<Derived2, IDerived2, IDerived, IExtra>, public IExtra {
+    std::string name_;
+    std::string name2_;
+    std::string name_ex_;
+
+public:
+    using IObjectImpl_ = xbase::ObjectBase<Derived2, IDerived2, IDerived, IExtra>;
+
+public:
+    explicit Derived2(const xbase::Uid _obj_uid) : IObjectImpl_(_obj_uid) {}
+
+    void NameSet(std::string_view _name) override { name_ = _name; };
+
+    std::string_view NameGet() const override { return name_; };
+
+    void NameSet2(std::string_view _name) override { name2_ = _name; };
+
+    std::string_view NameGet2() const override { return name2_; };
+
+    void NameExtraSet(std::string_view _name) override { name_ex_ = _name; };
+
+    std::string_view NameExtraGet() const override { return name_ex_; };
+};
+
+TEST(xobject_test, derived_test)
+{
+    IObject::SPtr derived_obj = std::make_shared<Derived2>(123);
+    ASSERT_TRUE(derived_obj);
+
+    EXPECT_EQ(derived_obj->ObjectUid(), 123);
+
+    auto derived = xobject::PtrQuery<IDerived>(derived_obj.get());
+    ASSERT_TRUE(derived);
+    derived->NameSet("123");
+    EXPECT_EQ(derived->NameGet(), "123");
+    auto derived_2 = xobject::PtrQuery<IDerived2>(derived_obj.get());
+    ASSERT_TRUE(derived_2);
+    derived_2->NameSet2("567");
+    EXPECT_EQ(derived_2->NameGet2(), "567");
+    auto derived_ex = xobject::PtrQuery<IExtra>(derived_obj.get());
+    ASSERT_TRUE(derived_ex);
+    derived_ex->NameExtraSet("extra");
+    EXPECT_EQ(derived_ex->NameExtraGet(), "extra");
+}
 
 TEST(xobject_test, query_ptr_invalid_type)
 {
@@ -159,5 +233,74 @@ TEST(xobject_test, ptr_query_const_from_null)
     auto obj_qp_sp = xobject::PtrQuery<const IObject>(io_test.get());
     EXPECT_FALSE(obj_qp_sp);
 }
+
+TEST(xobject_test, object_base_query_ptr_unknown_type_returns_empty_any)
+{
+    IObject::SPtr derived_obj = std::make_shared<Derived2>(123);
+    ASSERT_TRUE(derived_obj);
+
+    auto queried = derived_obj->QueryPtr(xbase::TypeUid<INotRegistered>());
+    EXPECT_FALSE(queried.has_value());
+}
+
+TEST(xobject_test, object_base_query_ptrc_unknown_type_returns_empty_any)
+{
+    const IObject::SPtr derived_obj = std::make_shared<Derived2>(123);
+    ASSERT_TRUE(derived_obj);
+
+    auto queried = derived_obj->QueryPtrC(xbase::TypeUid<const INotRegistered>());
+    EXPECT_FALSE(queried.has_value());
+}
+
+TEST(xobject_test, object_base_ptr_query_unknown_type_returns_nullptr)
+{
+    IObject::SPtr derived_obj = std::make_shared<Derived2>(123);
+    ASSERT_TRUE(derived_obj);
+
+    auto queried = xobject::PtrQuery<INotRegistered>(derived_obj.get());
+    EXPECT_EQ(queried, nullptr);
+}
+
+TEST(xobject_test, object_base_ptr_query_const_unknown_type_returns_nullptr)
+{
+    const IObject::SPtr derived_obj = std::make_shared<Derived2>(123);
+    ASSERT_TRUE(derived_obj);
+
+    auto queried = xobject::PtrQuery<INotRegistered>(derived_obj.get());
+    EXPECT_EQ(queried, nullptr);
+}
+
+TEST(xobject_test, object_base_query_ptrc_requires_const_type_uid)
+{
+    const IObject::SPtr derived_obj = std::make_shared<Derived2>(123);
+    ASSERT_TRUE(derived_obj);
+
+    auto queried = derived_obj->QueryPtrC(xbase::TypeUid<IExtra>());
+    EXPECT_FALSE(queried.has_value());
+}
+
+TEST(xobject_test, object_base_ptr_query_null_object_returns_nullptr)
+{
+    EXPECT_EQ(xobject::PtrQuery<IDerived>(static_cast<IObject*>(nullptr)), nullptr);
+    EXPECT_EQ(xobject::PtrQuery<IDerived>(static_cast<const IObject*>(nullptr)), nullptr);
+}
+
+TEST(xobject_test, object_base_query_ptr_before_shared_ptr_returns_empty_any)
+{
+    Derived2 derived_obj(321);
+
+    auto queried = derived_obj.QueryPtr(xbase::TypeUid<IDerived2>());
+    EXPECT_FALSE(queried.has_value());
+}
+
+TEST(xobject_test, object_base_query_ptrc_before_shared_ptr_returns_empty_any)
+{
+    const Derived2 derived_obj(321);
+
+    auto queried = derived_obj.QueryPtrC(xbase::TypeUid<const IDerived2>());
+    EXPECT_FALSE(queried.has_value());
+}
+
+} // namespace xsdk::xbase::object
 
 // NOLINTEND(*)

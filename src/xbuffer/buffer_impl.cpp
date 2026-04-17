@@ -1,4 +1,7 @@
 #include "buffer_impl.h"
+#include "xbase/variant_utils.hpp"
+
+#include <cassert>
 
 namespace xsdk {
 
@@ -17,13 +20,13 @@ bool xbuffer::IsBinary(const xbase::IBuffer* _data_buffer_p)
 std::string xbuffer::ToString(const xbase::IBuffer* _data_buffer_p)
 {
     if (!_data_buffer_p)
-        return "null";
+        return std::string {xbuffer::kNull};
 
     if (!xbuffer::IsString(_data_buffer_p))
-        return "bin"; // TODO: return unique key as for RPC?
+        return std::string {xbuffer::kBinary}; // 2Think: return unique key as for RPC?
 
     return std::string(_data_buffer_p->BufferData());
- }
+}
 
 xbase::IBuffer::SPtr xbuffer::CreateStringBuffer(std::string&& _string, const std::optional<xbase::Uid> _object_uid)
 {
@@ -35,15 +38,15 @@ xbase::IBuffer::SPtr xbuffer::CreateStringBuffer(std::any&&                     
                                                  const std::optional<xbase::Uid> _object_uid)
 {
     if (!_holder.has_value())
-        xbase::impl::BufferImpl::Create(std::string(_string_view), _object_uid);
+        return xbase::impl::BufferImpl::Create(std::string(_string_view), _object_uid);
 
     return xbase::impl::BufferImpl::Create(
         xbase::BufferMakeC(_string_view.size(), _string_view.data(), std::move(_holder)),
         _object_uid);
 }
 
-xbase::IBuffer::SPtr xbuffer::CreateDataBuffer(const void*  _data_p,
-                                               const size_t _size_in_bytes,
+xbase::IBuffer::SPtr xbuffer::CreateDataBuffer(const void*                               _data_p,
+                                               const size_t                              _size_in_bytes,
                                                std::any&&                                _holder,
                                                const std::optional<xbase::IBuffer::Type> _buffer_type,
                                                const std::optional<xbase::Uid>           _object_uid)
@@ -73,33 +76,22 @@ xbase::IBuffer::SPtr xbuffer::CreateDataBuffer(const void*  _data_p,
 }
 
 namespace xbase::impl {
+
+    BufferImpl::BufferImpl(const xbase::Uid _uid, BufferV&& _buffer) : ObjectBase_(_uid), buffer_(std::move(_buffer))
+    {
+        assert(_uid != xbase::kInvalidUid);
+        actual_size_.store(BufferImpl::BufferCapacity());
+    }
+
     IBuffer::SPtr BufferImpl::Create(BufferV&& _buffer, const std::optional<xbase::Uid> _object_uid)
     {
-        auto object_uid = _object_uid.value_or(xbase::kInvalidUid) == xbase::kInvalidUid ? xbase::NextUid() :
-                                                                                           _object_uid.value();
-        return IBuffer::SPtr {new BufferImpl(object_uid, std::move(_buffer))};
-    }
+        // Do not use .value_or(xbase::NextUid()) for do not alloc uid even if _object_uid valid
+        auto object_uid = _object_uid.value_or(xbase::kInvalidUid);
+        if (object_uid == xbase::kInvalidUid)
+            object_uid = xbase::NextUid();
 
-    std::any BufferImpl::QueryPtr(xbase::Uid _type_query)
-    {
-        if (_type_query == xbase::TypeUid<IObject>())
-            return std::static_pointer_cast<IObject>(shared_from_this());
-
-        if (_type_query == xbase::TypeUid<IBuffer>())
-            return std::static_pointer_cast<IBuffer>(shared_from_this());
-
-        return {};
-    }
-
-    std::any BufferImpl::QueryPtrC(xbase::Uid _type_query) const
-    {
-        if (_type_query == xbase::TypeUid<const IObject>())
-            return std::static_pointer_cast<const IObject>(shared_from_this());
-
-        if (_type_query == xbase::TypeUid<const IBuffer>())
-            return std::static_pointer_cast<const IBuffer>(shared_from_this());
-
-        return {};
+        std::shared_ptr<BufferImpl> buffer_p {new BufferImpl(object_uid, std::move(_buffer))};
+        return buffer_p;
     }
 
     IBuffer::Type BufferImpl::BufferType() const
@@ -118,14 +110,18 @@ namespace xbase::impl {
         assert("!BufferType - wrong varaint state");
         return {};
     }
+
     const std::string& BufferImpl::BufferOwnString() const
     {
         const auto* str_p = std::get_if<std::string>(&buffer_);
-        if (str_p)
-            return *str_p;
+        if (!str_p) {
+            static const std::string empty_string;
+            return empty_string;
+        }
 
-        return empty_string_;
+        return *str_p;
     }
+
     std::string_view BufferImpl::BufferData() const
     {
         const auto* u8c_data_p = std::get_if<BufferTypedC<uint8_t>>(&buffer_);
@@ -144,7 +140,8 @@ namespace xbase::impl {
         assert(str_p && "BufferData");
         return *str_p;
     }
-    size_t BufferImpl::BufferCapacity () const
+
+    size_t BufferImpl::BufferCapacity() const
     {
         const auto* u8_data_p = std::get_if<BufferTyped<uint8_t>>(&buffer_);
         if (u8_data_p)
@@ -162,6 +159,7 @@ namespace xbase::impl {
         assert(str_p && "BufferCapacity ");
         return str_p->size();
     }
+
     uint8_t* BufferImpl::BufferWritePtr()
     {
         const auto* u8_data_p = std::get_if<BufferTyped<uint8_t>>(&buffer_);
@@ -170,6 +168,7 @@ namespace xbase::impl {
 
         return nullptr;
     }
+
     bool BufferImpl::BufferSizeSet(const size_t _new_size)
     {
         auto* u8_data_p = std::get_if<BufferTyped<uint8_t>>(&buffer_);

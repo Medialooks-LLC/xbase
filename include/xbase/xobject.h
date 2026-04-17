@@ -31,13 +31,13 @@ public:
      * @param _type_query The UID of the target object type.
      * @return A smart pointer to the queried object or null if not found.
      */
-    virtual std::any QueryPtr(xbase::Uid _type_query) = 0;
+    virtual std::any QueryPtr(const xbase::Uid _type_query) = 0;
     /**
      * @brief Method for querying a pointer to a constant object of a given type.
      * @param _type_query The UID of the target object type.
      * @return A constant smart pointer to the queried object or null if not found.
      */
-    virtual std::any QueryPtrC(xbase::Uid _type_query) const = 0;
+    virtual std::any QueryPtrC(const xbase::Uid _type_query) const = 0;
 };
 
 namespace xobject {

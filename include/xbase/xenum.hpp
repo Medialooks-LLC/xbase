@@ -319,15 +319,15 @@ namespace xenum {
             return _default;
 
         const auto& reflector = XEnumReflector::For<TEnum>();
-        auto        enum_val  = reflector.Find(_str_value);
+        const auto        enum_val  = reflector.Find(_str_value);
         if (enum_val.IsValid())
             return static_cast<TEnum>(enum_val.Value());
 
         // Special fix for 'k' prefix
         if (_str_value[0] != 'k') {
-            auto enum_val = reflector.Find(std::string("k").append(_str_value));
-            if (enum_val.IsValid())
-                return static_cast<TEnum>(enum_val.Value());
+            const auto enum_val_k = reflector.Find(std::string("k").append(_str_value));
+            if (enum_val_k.IsValid())
+                return static_cast<TEnum>(enum_val_k.Value());
         }
 
         return _default;

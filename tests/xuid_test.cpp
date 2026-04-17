@@ -11,6 +11,7 @@ struct MyStruct {};
 
 template <class TBase>
 class TestClass: public std::string {};
+
 using MyUsing = TestClass<int>;
 typedef TestClass<int> MyTypedef;
 
@@ -130,5 +131,25 @@ TEST(xuid_tests, make_uid_in_multi_threads)
         EXPECT_EQ(uid1, uids1[i]);
         EXPECT_EQ(uid2, uids2[i]);
         EXPECT_EQ(uid3, uids3[i]);
+    }
+}
+
+TEST(xuid_tests, hash_string_test)
+{
+    std::vector<std::string> parts = {"FirstPart", "NextPart", "A", "_", "XXX", "", "::", ":", "LAST"};
+
+    std::string               accum;
+    std::optional<xbase::Uid> hash_seq;
+
+    std::set<xbase::Uid> values;
+    for (const auto& s : parts) {
+        accum += s;
+        auto hash_direct = xbase::HashString(accum);
+        hash_seq         = xbase::HashString(s, hash_seq);
+
+        EXPECT_EQ(hash_direct, hash_seq.value());
+
+        auto new_one = values.emplace(hash_seq.value()).second;
+        EXPECT_EQ(new_one, !s.empty());
     }
 }

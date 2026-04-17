@@ -11,8 +11,101 @@ xbase::IScheduler::UPtr xscheduler::CreateScheduler(const xbase::IClock* _clock_
 
 xbase::IScheduler* xscheduler::StaticScheduler()
 {
-    static xbase::IScheduler::UPtr scheduler = xscheduler::CreateScheduler(xclock::UtcClock(true), true);
+    static IScheduler::UPtr scheduler = xscheduler::CreateScheduler(xclock::UtcClock(true), true);
     return scheduler.get();
+}
+
+bool xscheduler::IsActiveTask(xbase::IScheduler* _scheduler_p, const xbase::Uid _task_uid)
+{
+    if (!_scheduler_p || _task_uid == xbase::kInvalidUid)
+        return false;
+
+    const auto [status, _task_info] = _scheduler_p->TaskStatus(_task_uid);
+    return status == IScheduler::Status::kScheduled || status == IScheduler::Status::kExecutingNow;
+}
+
+xbase::Time64 xscheduler::ScheduledTime(xbase::IScheduler* _scheduler_p, const double _delay_sec)
+{
+    if (!_scheduler_p)
+        return xsdk::time64::kNoVal;
+
+    return _scheduler_p->Clock()->Time() + xsdk::time64::FromSec(_delay_sec);
+}
+
+std::optional<xbase::Time64> xscheduler::RescheduleTaskNoLaterThan(xbase::IScheduler*  _scheduler_p,
+                                                                   const xbase::Uid    _task_uid,
+                                                                   const xbase::Time64 _scheduled_time)
+{
+    if (!_scheduler_p || _task_uid == xbase::kInvalidUid)
+        return std::nullopt;
+
+    const auto [status, task_info] = _scheduler_p->TaskStatus(_task_uid);
+
+    if (status == IScheduler::Status::kExecutingNow)
+        return task_info.scheduled_time;
+
+    if (status != IScheduler::Status::kScheduled)
+        return std::nullopt;
+
+    if (task_info.scheduled_time <= _scheduled_time)
+        return task_info.scheduled_time;
+
+    if (_scheduler_p->RescheduleTask(_task_uid, _scheduled_time) == IScheduler::TaskRes::kNotFound)
+        return std::nullopt;
+
+    return _scheduled_time;
+}
+
+xscheduler::ScheduleTaskResult xscheduler::RunTaskNoLaterThan(std::atomic<xbase::Uid>&   _atomic_task_uid,
+                                                              IScheduler*                _scheduler_p,
+                                                              const xbase::Time64        _scheduled_time,
+                                                              IScheduler::TaskFunction&& _task,
+                                                              const std::optional<xbase::IWorker::TaskUid>& _new_task_uid,
+                                                              const IWorker::SPtr& _task_worker)
+{
+    if (!_scheduler_p || !_task)
+        return {ScheduleTaskStatus::kError, xbase::kInvalidUid};
+
+    auto stored_uid = _atomic_task_uid.load();
+    if (stored_uid != xbase::kInvalidUid) {
+        if (xscheduler::RescheduleTaskNoLaterThan(_scheduler_p, stored_uid, _scheduled_time))
+            return {ScheduleTaskStatus::kAlreadyActive, stored_uid};
+
+        _atomic_task_uid.compare_exchange_strong(stored_uid, xbase::kInvalidUid);
+    }
+
+    auto new_task_uid = _scheduler_p->ScheduleTask(time64::kFuture, std::move(_task), _new_task_uid, _task_worker);
+    if (new_task_uid == xbase::kInvalidUid)
+        return {ScheduleTaskStatus::kError, xbase::kInvalidUid};
+
+    auto expected_uid = xbase::kInvalidUid;
+    while (!_atomic_task_uid.compare_exchange_strong(expected_uid, new_task_uid)) {
+        if (xscheduler::RescheduleTaskNoLaterThan(_scheduler_p, expected_uid, _scheduled_time)) {
+            _scheduler_p->CancelTask(new_task_uid);
+            return {ScheduleTaskStatus::kAlreadyActive, expected_uid};
+        }
+    }
+
+    [[maybe_unused]] auto res = _scheduler_p->RescheduleTask(new_task_uid, _scheduled_time);
+    assert(res != IScheduler::TaskRes::kNotFound && res != IScheduler::TaskRes::kInvalidUid);
+    return {ScheduleTaskStatus::kScheduledNew, new_task_uid};
+}
+
+xbase::Uid xscheduler::StopTask(std::atomic<xbase::Uid>& _atomic_task_uid,
+                                xbase::IScheduler*       _scheduler_p,
+                                const bool               _wait_for_finish)
+{
+    const auto task_uid = _atomic_task_uid.exchange(xbase::kInvalidUid);
+    if (task_uid == xbase::kInvalidUid || !_scheduler_p)
+        return task_uid;
+
+    auto [cancel_res, finish_future] = _scheduler_p->CancelTask(task_uid);
+    static_cast<void>(cancel_res);
+
+    if (_wait_for_finish && finish_future.valid())
+        finish_future.wait();
+
+    return task_uid;
 }
 
 namespace xbase::impl {
@@ -28,10 +121,12 @@ namespace xbase::impl {
                                                        xbase::NextUid();
         execution_data_.task_info.scheduled_time = _scheduled_time;
     }
+
     xbase::Time64 SchedulerImpl::SchedulerTask::UpdateScheduledTime(const xbase::Time64 _scheduled_time)
     {
         return std::exchange(execution_data_.task_info.scheduled_time, _scheduled_time);
     }
+
     SchedulerImpl::ExecutionData SchedulerImpl::SchedulerTask::ForExecution(const IClock* _clock_p) const
     {
         ExecutionData execution_data     = execution_data_;
@@ -50,6 +145,7 @@ namespace xbase::impl {
         // For scheduler is highly recommented to use monotonic sync gen
         assert(clock_p_ && clock_p_->SyncGenerator()->IsMonotonicIncrease());
     }
+
     IWorker::TaskUid SchedulerImpl::ScheduleTask(const xbase::Time64                    _scheduled_time,
                                                  TaskFunction&&                         _task,
                                                  const std::optional<IWorker::TaskUid>& _task_uid,

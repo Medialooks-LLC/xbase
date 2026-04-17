@@ -12,6 +12,7 @@
 #include "xbase/xdata.h"
 #include "xbase/xenum.hpp"
 #include "xbase/xobject.h"
+#include "xbase/object_base.hpp"
 #include "xbase/xpointers.hpp"
 #include "xbase/xresult.hpp"
 #include "xbase/xscheduler.h"

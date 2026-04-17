@@ -8,6 +8,8 @@
 #include <memory>
 #include <optional>
 #include <shared_mutex>
+#include <utility>
+#include <system_error>
 
 #include "xpointers.hpp"
 

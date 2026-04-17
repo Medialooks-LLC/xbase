@@ -5,6 +5,7 @@
 #include <system_error>
 #include <type_traits>
 #include <variant>
+#include <utility>
 
 namespace xsdk::xbase {
 /**

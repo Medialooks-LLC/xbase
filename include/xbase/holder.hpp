@@ -2,6 +2,8 @@
 
 #include <any>
 #include <utility>
+#include <memory>
+#include <cassert>
 
 namespace xsdk::xbase {
 /**
