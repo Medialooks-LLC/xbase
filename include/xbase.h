@@ -19,3 +19,4 @@
 #include "xbase/xtime.h"
 #include "xbase/xuid.h"
 #include "xbase/xworker.h"
+#include "xbase/param_strings.h"

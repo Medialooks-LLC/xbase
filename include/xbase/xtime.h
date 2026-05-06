@@ -45,8 +45,10 @@ namespace xbase {
         }
 
         int64_t Reset(int64_t _min_val = std::numeric_limits<int64_t>::min()) { return value_.exchange(_min_val); }
+
         int64_t Value() const { return value_.load(); }
     };
+
     /**
      * @brief Monotonic increasing sequence generator template class.
      *
@@ -98,12 +100,23 @@ namespace time64 {
     static constexpr Time64 kEpochSysToFileClock = -1 * kEpochShift;
     static constexpr Time64 kEpochFileToSysClock = kEpochShift;
 
+    constexpr bool IsValid(const Time64 _time_rt, const bool _inside_past_future = false)
+    {
+        return _time_rt != kNoVal && (!_inside_past_future || (_time_rt >= kPast && _time_rt <= kFuture));
+    }
+
+    constexpr bool IsValid(const std::optional<Time64> _time, const bool _inside_past_future = false)
+    {
+        return _time.has_value() && time64::IsValid(_time.value(), _inside_past_future);
+    }
+
     // Convert time64 value to units in rational form
     constexpr double ToUnits(const Time64 _time_rt, const Time64 _unit_num_rt, const Time64 _unit_den_rt = 1)
     {
         return _time_rt != kNoVal && _unit_num_rt != 0 ? ((double)_time_rt / _unit_num_rt * _unit_den_rt) :
                                                          std::numeric_limits<double>::min();
     }
+
     // Convert units in rational form to time64
     constexpr Time64 FromUnits(const double _time_dbl, const Time64 _unit_num_rt, const Time64 _unit_den_rt = 1)
     {
@@ -111,22 +124,30 @@ namespace time64 {
                    (Time64)(_time_dbl * _unit_num_rt / _unit_den_rt) :
                    kNoVal;
     }
-    constexpr double                ToMsec(const Time64 _time_rt) { return ToUnits(_time_rt, kMsec); }
-    constexpr Time64                FromMsec(const double& _time_dbl) { return FromUnits(_time_dbl, kMsec); }
-    constexpr double                ToSec(const Time64 _time_rt) { return ToUnits(_time_rt, kSecond); }
-    constexpr Time64                FromSec(const double& _time_dbl) { return FromUnits(_time_dbl, kSecond); }
+
+    constexpr double ToMsec(const Time64 _time_rt) { return ToUnits(_time_rt, kMsec); }
+
+    constexpr Time64 FromMsec(const double& _time_dbl) { return FromUnits(_time_dbl, kMsec); }
+
+    constexpr double ToSec(const Time64 _time_rt) { return ToUnits(_time_rt, kSecond); }
+
+    constexpr Time64 FromSec(const double& _time_dbl) { return FromUnits(_time_dbl, kSecond); }
+
     constexpr std::optional<double> ToSec(const std::optional<Time64> _time_rt)
     {
         return _time_rt.has_value() ? std::optional<double> {ToSec(_time_rt.value())} : std::nullopt;
     }
+
     constexpr std::optional<Time64> FromSec(const std::optional<double>& _time_dbl)
     {
         return _time_dbl.has_value() ? std::optional<Time64> {FromSec(_time_dbl.value())} : std::nullopt;
     }
+
     constexpr std::optional<Time64> ToOptional(const Time64 _time_rt, const Time64 _invalid_rt_value = kNoVal)
     {
         return _time_rt != _invalid_rt_value ? std::optional<Time64>(_time_rt) : std::nullopt;
     }
+
     template <typename TRep, typename TPeriod>
     xbase::Time64 FromDuration(const std::chrono::duration<TRep, TPeriod> _dur)
     {
@@ -151,6 +172,7 @@ namespace time64 {
     }
 
     enum class AlignType { kLower, kRound, kUpper };
+
     constexpr std::pair<Time64, int64_t> BlockAlign(const Time64    _val,
                                                     const int64_t   _block_len_num,
                                                     const int64_t   _block_len_den = 1,

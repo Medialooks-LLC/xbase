@@ -33,19 +33,20 @@ namespace xsdk {
 
 //-------------------------------- Public Interface --------------------------------
 
-#define XENUM_OPS32(_enum_name)                                              \
-    constexpr xenum::Value<_enum_name> operator&(_enum_name l, _enum_name r) \
-    {                                                                        \
-        return _enum_name(uint32_t(l) & uint32_t(r));                        \
-    }                                                                        \
-    constexpr xenum::Value<_enum_name> operator|(_enum_name l, _enum_name r) \
-    {                                                                        \
-        return _enum_name(uint32_t(l) | uint32_t(r));                        \
-    }                                                                        \
-    constexpr xenum::Value<_enum_name> operator^(_enum_name l, _enum_name r) \
-    {                                                                        \
-        return _enum_name(uint32_t(l) ^ uint32_t(r));                        \
-    }                                                                        \
+#define XENUM_OPS32(_enum_name)                                                                               \
+    constexpr xenum::Value<_enum_name> operator&(_enum_name l, _enum_name r)                                  \
+    {                                                                                                         \
+        return _enum_name(uint32_t(l) & uint32_t(r));                                                         \
+    }                                                                                                         \
+    constexpr xenum::Value<_enum_name> operator|(_enum_name l, _enum_name r)                                  \
+    {                                                                                                         \
+        return _enum_name(uint32_t(l) | uint32_t(r));                                                         \
+    }                                                                                                         \
+    constexpr xenum::Value<_enum_name> operator^(_enum_name l, _enum_name r)                                  \
+    {                                                                                                         \
+        return _enum_name(uint32_t(l) ^ uint32_t(r));                                                         \
+    }                                                                                                         \
+    constexpr bool HasFlag(_enum_name l, _enum_name r) { return (uint32_t(l) & uint32_t(r)) == uint32_t(r); } \
     constexpr xenum::Value<_enum_name> operator~(_enum_name t) { return _enum_name(~uint32_t(t)); }
 
 // Declare an enumeration inside a class
@@ -66,9 +67,10 @@ class XEnumReflector {
             std::string name;
             int32_t     value = 0;
         };
+
         std::vector<Enumerator> values;
         std::string             enum_name;
-        
+
         // TODO: (the common part of all enums values)
         std::string prefix;
     };
@@ -113,11 +115,13 @@ public:
     {
         data_->enum_name = _name;
         data_->values.resize(_count);
+
         enum states {
             state_start, // Before identifier
             state_ident, // In identifier
             state_skip,  // Looking for separator comma
         } state = state_start;
+
         assert(*_body == '(');
         ++_body;
         const char* ident_start = nullptr;
@@ -203,7 +207,7 @@ public:
 
         // Check if this is an valid Enumerator
         bool IsValid() const;
-        operator bool() const;
+             operator bool() const;
 
         // Check if two objects are the same
         bool operator!=(const Enumerator& rhs) const;
@@ -259,8 +263,6 @@ public:
 
     // Returns an invalid Enumerator
     Enumerator end() const;
-
-
 };
 
 namespace xenum {
@@ -278,8 +280,11 @@ namespace xenum {
     template <typename T>
     struct Value {
         T t;
+
         constexpr Value(T t) : t(t) {}
-        constexpr          operator T() const { return t; }
+
+        constexpr operator T() const { return t; }
+
         constexpr explicit operator bool() const { return uint32_t(t); }
     };
 
@@ -319,7 +324,7 @@ namespace xenum {
             return _default;
 
         const auto& reflector = XEnumReflector::For<TEnum>();
-        const auto        enum_val  = reflector.Find(_str_value);
+        const auto  enum_val  = reflector.Find(_str_value);
         if (enum_val.IsValid())
             return static_cast<TEnum>(enum_val.Value());
 
@@ -376,8 +381,8 @@ namespace xenum {
                                                                                                                  \
                 DetailVal& operator=(const DetailVal&) { return *this; }                                         \
                 DetailVal& operator=(int32_t) { return *this; }                                                  \
-                operator int32_t() const { return val_; }                                                        \
-                int32_t val_;                                                                                    \
+                           operator int32_t() const { return val_; }                                             \
+                int32_t    val_;                                                                                 \
             } __VA_ARGS__;                                                                                       \
             const int32_t detail_vals[] = {__VA_ARGS__};                                                         \
             return xsdk::XEnumReflector(std::make_unique<xsdk::XEnumReflector::CloseDetectorImpl<_enum_name>>(), \
