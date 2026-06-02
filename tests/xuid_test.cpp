@@ -26,29 +26,46 @@ enum class MyEnumClass { kRed = 11, kBlue, kGreen };
 
 TEST(xuid_tests, type_uid)
 {
-    constexpr auto uid  = xbase::TypeUid<std::string>();
-    constexpr auto uid1 = xbase::TypeUid<std::wstring>();
-    constexpr auto uid2 = xbase::TypeUid<TestClass<int>>();
-    constexpr auto uid3 = xbase::TypeUid<MyUsing>();
-    constexpr auto uid4 = xbase::TypeUid<MyTypedef>();
+    constexpr auto uid             = xbase::TypeUid<std::string>();
+    constexpr auto uid1            = xbase::TypeUid<std::wstring>();
+    constexpr auto uid2            = xbase::TypeUid<TestClass<int>>();
+    constexpr auto uid3            = xbase::TypeUid<MyUsing>();
+    constexpr auto uid4            = xbase::TypeUid<MyTypedef>();
+    constexpr auto uid_const       = xbase::TypeUid<const MyStruct>();
+    constexpr auto uid_const_same  = xbase::TypeUid<MyStruct const>();
+    constexpr auto uid_blob        = xbase::TypeUid<xbase::BlobTyped<uint8_t>>();
+    constexpr auto uid_blob_alias  = xbase::TypeUid<xbase::XBlob>();
+    constexpr auto uid_blobc       = xbase::TypeUid<xbase::BlobTypedC<uint8_t>>();
+    constexpr auto uid_blobc_alias = xbase::TypeUid<xbase::XBlobC>();
     EXPECT_TRUE(uid);
     EXPECT_NE(uid1, uid2) << "xbase::TypeUid SAME for std::string & std::wstring";
     EXPECT_EQ(uid3, uid2) << "xbase::TypeUid WRONG for using";
     EXPECT_EQ(uid3, uid4) << "xbase::TypeUid WRONG for typedef";
+    EXPECT_EQ(uid_const, uid_const_same) << "xbase::TypeUid WRONG for top-level const canonicalization";
+    EXPECT_EQ(uid_blob, uid_blob_alias) << "xbase::TypeUid WRONG for blob alias";
+    EXPECT_EQ(uid_blobc, uid_blobc_alias) << "xbase::TypeUid WRONG for const blob alias";
 }
 
 TEST(xuid_tests, type_name)
 {
     using namespace xtest;
 
-    constexpr auto name  = xbase::TypeName<std::string>();
-    constexpr auto name1 = xbase::TypeName<TestClass<int>>();
-    constexpr auto name2 = xbase::TypeName<MyUsing>();
-    constexpr auto name3 = xbase::TypeName<MyStruct>();
-    constexpr auto name4 = xbase::TypeName<TestClassNS>();
-    constexpr auto name5 = xbase::TypeName<MyTypedef>();
-    constexpr auto name6 = xbase::TypeName<MyEnum>();
-    constexpr auto name7 = xbase::TypeName<MyEnumClass>();
+    constexpr auto name   = xbase::TypeName<std::string>();
+    constexpr auto name1  = xbase::TypeName<TestClass<int>>();
+    constexpr auto name2  = xbase::TypeName<MyUsing>();
+    constexpr auto name3  = xbase::TypeName<MyStruct>();
+    constexpr auto name4  = xbase::TypeName<TestClassNS>();
+    constexpr auto name5  = xbase::TypeName<MyTypedef>();
+    constexpr auto name6  = xbase::TypeName<MyEnum>();
+    constexpr auto name7  = xbase::TypeName<MyEnumClass>();
+    constexpr auto name8  = xbase::TypeName<const MyStruct>();
+    constexpr auto name9  = xbase::TypeName<MyStruct const>();
+    constexpr auto name10 = xbase::TypeName<const TestClassNS>();
+    constexpr auto name11 = xbase::TypeName<TestClassNS const>();
+    constexpr auto name12 = xbase::TypeName<xbase::BlobTyped<uint8_t>>();
+    constexpr auto name13 = xbase::TypeName<xbase::XBlob>();
+    constexpr auto name14 = xbase::TypeName<xbase::BlobTypedC<uint8_t>>();
+    constexpr auto name15 = xbase::TypeName<xbase::XBlobC>();
     std::cout << name << std::endl;
     std::cout << name1 << std::endl;
     std::cout << name2 << std::endl;
@@ -57,8 +74,18 @@ TEST(xuid_tests, type_name)
     std::cout << name5 << std::endl;
     std::cout << name6 << std::endl;
     std::cout << name7 << std::endl;
+    std::cout << name8 << std::endl;
+    std::cout << name10 << std::endl;
+    std::cout << name12 << std::endl;
+    std::cout << name13 << std::endl;
+    std::cout << name14 << std::endl;
+    std::cout << name15 << std::endl;
     EXPECT_EQ(name1, name2);
     EXPECT_EQ(name1, name5);
+    EXPECT_EQ(name8, name9);
+    EXPECT_EQ(name10, name11);
+    EXPECT_EQ(name12, name13);
+    EXPECT_EQ(name14, name15);
 
     EXPECT_EQ(name1, "TestClass<int>");
     EXPECT_EQ(name2, "TestClass<int>");
@@ -67,6 +94,12 @@ TEST(xuid_tests, type_name)
     EXPECT_EQ(name5, "TestClass<int>");
     EXPECT_EQ(name6, "xtest::MyEnum");
     EXPECT_EQ(name7, "xtest::MyEnumClass");
+    EXPECT_EQ(name8, "const MyStruct");
+    EXPECT_EQ(name10, "const xtest::TestClassNS");
+    EXPECT_EQ(name12, "xsdk::xbase::BlobTyped<unsigned char>");
+    EXPECT_EQ(name13, "xsdk::xbase::BlobTyped<unsigned char>");
+    EXPECT_EQ(name14, "xsdk::xbase::BlobTypedC<unsigned char>");
+    EXPECT_EQ(name15, "xsdk::xbase::BlobTypedC<unsigned char>");
 }
 
 TEST(xuid_tests, make_uid_from_invalid_uid)

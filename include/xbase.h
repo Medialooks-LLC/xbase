@@ -10,7 +10,7 @@
 #include "xbase/xbuffer.h"
 #include "xbase/xclock.h"
 #include "xbase/xdata.h"
-#include "xbase/xenum.hpp"
+#include "xbase/xenum.h"
 #include "xbase/xobject.h"
 #include "xbase/object_base.hpp"
 #include "xbase/xpointers.hpp"

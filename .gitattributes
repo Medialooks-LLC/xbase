@@ -1,0 +1,6 @@
+# Normalize text files in the repository while allowing platform-specific
+# working-tree line endings through the local Git configuration.
+* text=auto
+
+# Keep common Unix shell scripts LF-only.
+*.sh text eol=lf

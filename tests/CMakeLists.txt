@@ -21,6 +21,10 @@ add_executable(${PROJECT_NAME}
                ${FILES}
 )
 
+if(WIN32)
+    target_link_options(${PROJECT_NAME} PRIVATE /IGNORE:4099)
+endif()
+
 target_link_libraries(${PROJECT_NAME}
                         GTest::gtest_main
                         xbase

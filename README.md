@@ -13,6 +13,15 @@ The `xbase` library provides a set of C++ classes and utilities for object-orien
 - `PtrBase`: A base class template for managing smart pointers of a derived classes.
 - `TypeUid`: A template classs to obtain a compile-time constant UID for a given C++ type.
 
+## ABI notes
+
+`TypeUid<T>()` is derived from the canonical result of `TypeName<T>()`.
+
+- Rebuild the library and all consumers together whenever the canonical naming rules change.
+- Canonical names are intended to match across supported compilers for named user-defined types used as interface keys.
+- The normalization is intended for interface-like named types queried across binary boundaries, not as a general canonicalizer for every possible C++ type spelling.
+- Manual verification scenario for `QueryPtrC`: build the library with MSVC, build a consumer with `clang-cl`, and confirm `xobject::PtrQuery<const Interface>()` resolves the same interface successfully on both sides.
+
 
 ## Usage
 

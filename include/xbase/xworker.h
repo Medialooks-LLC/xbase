@@ -5,9 +5,9 @@
 #include <memory>
 #include <optional>
 
+#include "xenum.h"
 #include "xpointers.hpp"
 #include "xuid.h"
-#include "xenum.hpp"
 
 namespace xsdk {
 /**
@@ -172,6 +172,7 @@ namespace xworker {
 
     /// @brief default workers pool.
     xbase::IWorker* StaticPool();
+
     /// @brief return _worker or static workers pool (never null)
     inline xbase::IWorker* DefaultWorker(xbase::IWorker* const _worker_p)
     {

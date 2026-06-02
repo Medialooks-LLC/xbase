@@ -5,3 +5,6 @@
 .vscode
 .DS_Store
 build
+build_msvc
+build_clang
+build_clang_vs

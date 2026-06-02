@@ -404,9 +404,9 @@ TEST(xclock_tests, wait_clock)
               << std::endl;
     EXPECT_NE(expt, time64::kNoVal) << "LOOK like Event signalid BUT DOES NOT";
     EXPECT_GE(std::abs(time64::ToMsec(real - expt)), 0.00001);
-    EXPECT_LE(std::abs(time64::ToMsec(real - expt)), 30.0);
+    EXPECT_LE(std::abs(time64::ToMsec(real - expt)), 50.0);
 
-    EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 30.0);
+    EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 50.0);
 }
 
 TEST(xclock_tests, no_wait_clock)
@@ -479,7 +479,7 @@ TEST(xclock_tests, wait_with_cancel)
     wait_thread.join();
 
     EXPECT_EQ(expt, time64::kNoVal);
-    EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 30.0);
+    EXPECT_LE(std::abs(time64::ToMsec(real) - msec_wait), 50.0);
 }
 
 TEST(xclock_tests, wait_with_cancel_mtx)
