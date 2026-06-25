@@ -1,10 +1,16 @@
 #pragma once
 
 #include "xbase/atomic_wait.hpp"
+#include "xbase/averages.hpp"
+#include "xbase/base64.h"
 #include "xbase/containers.hpp"
 #include "xbase/numbers.hpp"
+#include "xbase/platform.h"
+#include "xbase/random.h"
 #include "xbase/shared_from_this.hpp"
+#include "xbase/strings.h"
 #include "xbase/variant_utils.hpp"
+#include "xbase/vectors.hpp"
 #include "xbase/xany.hpp"
 #include "xbase/xblob.hpp"
 #include "xbase/xbuffer.h"
@@ -20,3 +26,4 @@
 #include "xbase/xuid.h"
 #include "xbase/xworker.h"
 #include "xbase/param_strings.h"
+#include "xbase/url.h"

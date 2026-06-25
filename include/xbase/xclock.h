@@ -163,6 +163,8 @@ namespace xbase {
     private:
         Time64 Time_() const;
     };
+
+    using ClockCpp = ClockHR;
 } // namespace xbase
 
 namespace xclock {

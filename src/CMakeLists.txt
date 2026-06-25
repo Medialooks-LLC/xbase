@@ -28,14 +28,13 @@ if(WIN32)
                           IPHLPAPI
     )
     set_target_properties(xbase PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
-else()
-    target_link_libraries(${PROJECT_NAME}
-                          PUBLIC
-    )
 endif()
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries(${PROJECT_NAME} stdc++fs)
+    target_link_libraries(${PROJECT_NAME}
+                          PUBLIC
+                          stdc++fs
+    )
 endif()
 
 target_include_directories(

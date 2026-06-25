@@ -428,7 +428,7 @@ namespace xenum {
     std::optional<TEnum> FromString(const std::string_view _str_value, const std::optional<TEnum> _default = {})
     {
         std::optional<TEnum> result;
-        for (const auto token : xbase::strings::StrSplit(_str_value, '|', true)) {
+        for (const auto token : xbase::strings::Split(_str_value, '|', true)) {
             auto enum_val = FromStringOne<TEnum>(token);
             if (enum_val.has_value())
                 result = result.value_or(enum_val.value()) | enum_val.value();

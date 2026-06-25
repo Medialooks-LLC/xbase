@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <ctime>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -133,6 +134,10 @@ namespace time64 {
 
     constexpr Time64 FromSec(const double& _time_dbl) { return FromUnits(_time_dbl, kSecond); }
 
+    constexpr double ToTime(const Time64 _time_rt, const Time64 _unit) { return ToUnits(_time_rt, _unit); }
+
+    constexpr Time64 FromTime(const double _time_dbl, const Time64 _unit) { return FromUnits(_time_dbl, _unit); }
+
     constexpr std::optional<double> ToSec(const std::optional<Time64> _time_rt)
     {
         return _time_rt.has_value() ? std::optional<double> {ToSec(_time_rt.value())} : std::nullopt;
@@ -155,6 +160,24 @@ namespace time64 {
         return std::chrono::duration_cast<std::chrono::nanoseconds>(_dur).count() / nsec_per_tick;
     }
 
+    time_t SysClockTime(int64_t* _second_fraction_rt_p = nullptr);
+
+    int64_t UtcTime();
+
+    std::tm LocalTime(const time_t& _time);
+
+    std::tm GmTime(const time_t& _time);
+
+    std::tm SysClockTm(bool _utc_time, int64_t _offset_msec = 0, int64_t* _second_fraction_rt_p = nullptr);
+
+    std::string TimeNowString(bool _utc_time, bool _include_msec, int64_t _offset_msec = 0);
+
+    std::tm StringToTime(const std::string& _time, uint8_t* _succeeded_p = nullptr);
+
+    std::time_t StringToTimeT(const std::string& _time, uint8_t* _succeeded_p = nullptr);
+
+    time_t CompilerDateToTime(const char* _date);
+
     constexpr Time64 BlockStart(const int64_t _idx,
                                 const int64_t _block_len_num,
                                 const int64_t _block_len_den = 1,
@@ -168,7 +191,7 @@ namespace time64 {
         const auto num = _block_len_num / gcd;
         const auto den = _block_len_den / gcd;
         // TODO: MullDiv64
-        return _base + ((_idx * num) + den / 2) / den;
+        return _base + ((_idx * num) + (den / 2)) / den;
     }
 
     enum class AlignType { kLower, kRound, kUpper };

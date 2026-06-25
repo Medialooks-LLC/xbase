@@ -39,7 +39,7 @@ Checks: >
   -modernize-avoid-bind,
   -readability-identifier-length,
   -performance-enum-size,
-  -clang-analyzer-optin.core.EnumCastOutOfRange
+  -clang-analyzer-optin.core.EnumCastOutOfRange,
+  -portability-avoid-pragma-once
 
 WarningsAsErrors: '*'
-

@@ -188,7 +188,9 @@ TEST(xclock_tests, sync_gen_std_tests)
         auto ts2 = sys_gen->Timestamp();
         EXPECT_GT(ts2, ts1) << " timestamps are equal, i: " << i;
     }
-    EXPECT_GE(sys_gen->Timestamp(1000), sys_gen->Timestamp(1000));
+    const auto timestamp_1 = sys_gen->Timestamp(1000);
+    const auto timestamp_2 = sys_gen->Timestamp(1000);
+    EXPECT_GE(timestamp_2, timestamp_1);
 
     auto sys_gen2  = xclock::SyncGenStd<std::chrono::system_clock>(false);
     bool has_equal = false;

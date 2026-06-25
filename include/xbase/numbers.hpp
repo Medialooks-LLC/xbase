@@ -5,11 +5,26 @@
  * @brief Numeric helpers for optional conversion, addition, clamping, and alignment.
  */
 
+#include <cstdint>
 #include <limits>
+#include <numeric>
 #include <optional>
+#include <string_view>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace xsdk::xbase {
+class Rational: public std::pair<int32_t, int32_t> {
+public:
+    using pair::operator=;
+    using pair::pair;
+
+    explicit operator bool() const { return first != 0 && second != 0; }
+    double ToDouble(const double _default = 0.0) const { return second != 0 ? static_cast<double>(first) / second :
+                                                                       _default; }
+};
+
 namespace detail {
 
     /**
@@ -65,6 +80,60 @@ namespace detail {
     }
 
 } // namespace detail
+
+namespace numbers {
+
+    template <class TClampFor, class TNumber>
+    constexpr TClampFor ClampNumber(const TNumber& _value)
+    {
+        if constexpr (std::numeric_limits<TNumber>::lowest() == 0) {
+            return static_cast<TClampFor>(std::min(_value, static_cast<TNumber>(std::numeric_limits<TClampFor>::max())));
+        }
+        else {
+            return static_cast<TClampFor>(std::min(std::max(static_cast<TNumber>(std::numeric_limits<TClampFor>::lowest()),
+                                                            _value),
+                                                   static_cast<TNumber>(std::numeric_limits<TClampFor>::max())));
+        }
+    }
+
+    template <>
+    inline uint64_t ClampNumber(const int64_t& _value)
+    {
+        return static_cast<uint64_t>(std::max<int64_t>(0, _value));
+    }
+
+    inline bool RationalToBool(const Rational _rational) { return _rational.first != 0 && _rational.second != 0; }
+
+    inline double RationalToDouble(const Rational _rational, const double _default = 0.0)
+    {
+        return RationalToBool(_rational) ? static_cast<double>(_rational.first) / _rational.second : _default;
+    }
+
+    std::pair<int64_t, double> SplitDouble(double _value);
+
+    std::pair<Rational, int64_t> Reduce(int64_t _first, int64_t _second);
+
+    Rational DoubleToRational(double _value, std::vector<Rational>&& _extra_check = {}, double _precision = 0.004);
+
+    int32_t ModSubMin(uint32_t _first_by_mod, uint32_t _second_by_mod, uint32_t _modulo);
+
+    uint64_t ModIndex(uint64_t _last, uint64_t _value_by_mod, uint32_t _modulo);
+
+    uint64_t ModDiv(int64_t _value, uint64_t _modulo);
+
+    uint32_t ModOneAdd(uint32_t _value, int32_t _add, uint32_t _modulo);
+
+    uint64_t NextUint64();
+
+    uint32_t HashUint32(uint32_t _value);
+
+    uint64_t HashUint64(uint64_t _value);
+
+    uint64_t HashData(size_t _size, const void* _data);
+
+    uint64_t HashString(std::string_view _text);
+
+} // namespace numbers
 
 /**
  * @brief Converts an optional number to another numeric type.

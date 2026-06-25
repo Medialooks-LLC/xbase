@@ -4,7 +4,15 @@
 #include "scheduler.h"
 #include "worker.h"
 
+#include <chrono>
+#include <thread>
+
 namespace xsdk {
+
+void xworker::SleepMsec(const int32_t _msec)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(_msec));
+}
 
 bool xworker::ExecuteSyncVoid(IWorker*                        _worker_p,
                               std::function<void()>&&         _pf,

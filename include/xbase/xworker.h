@@ -179,6 +179,8 @@ namespace xworker {
         return _worker_p ? _worker_p : StaticPool();
     }
 
+    void SleepMsec(int32_t _msec);
+
     /**
      * @brief Type alias for a function accepting an IWorker pointer which descride what worker should do on idle.
      */

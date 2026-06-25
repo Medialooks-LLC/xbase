@@ -578,6 +578,9 @@ TEST(xscheduler_test, is_active_task_finished)
     ASSERT_NE(task_uid, xbase::kInvalidUid);
     EXPECT_EQ(task_future.get(), 10);
 
+    for (size_t i = 0; i < 100 && xscheduler::IsActiveTask(scheduler_p.get(), task_uid); ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
     EXPECT_FALSE(xscheduler::IsActiveTask(scheduler_p.get(), task_uid));
 }
 

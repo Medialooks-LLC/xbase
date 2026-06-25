@@ -377,6 +377,37 @@ TEST(OptionalAddMixedIntegralTest, AppliesNegativeSignedDeltaToSignedValue)
     EXPECT_EQ(OptionalAdd<int32_t>(std::optional<int32_t> {10}, -7, false), std::optional<int32_t> {3});
 }
 
+TEST(ModDivTest, ReturnsZeroForMultiples)
+{
+    EXPECT_EQ(ModDiv(10, 5), 0u);
+    EXPECT_EQ(ModDiv(0, 5), 0u);
+}
+
+TEST(ModDivTest, HandlesNegativeValues)
+{
+    EXPECT_EQ(ModDiv(-5, 3), 1u);
+    EXPECT_EQ(ModDiv(-1, 5), 4u);
+}
+
+TEST(ModOneAddTest, WrapsOneBasedModulo)
+{
+    EXPECT_EQ(ModOneAdd(5, 1, 5), 1u);
+    EXPECT_EQ(ModOneAdd(1, -1, 5), 5u);
+}
+
+TEST(DoubleToRationalTest, PreservesExactIntegers)
+{
+    EXPECT_EQ(DoubleToRational(1.0), Rational(1, 1));
+    EXPECT_EQ(DoubleToRational(2.0), Rational(2, 1));
+    EXPECT_EQ(DoubleToRational(3.0), Rational(3, 1));
+}
+
+TEST(DoubleToRationalTest, KeepsWellKnownFractionalRatios)
+{
+    EXPECT_EQ(DoubleToRational(1000.0 / 1001.0), Rational(1000, 1001));
+    EXPECT_EQ(DoubleToRational(16.0 / 9.0), Rational(16, 9));
+}
+
 static_assert(OptionalConvert<int32_t>(std::optional<uint32_t> {42u}, false).has_value());
 static_assert(OptionalConvert<int32_t>(std::optional<uint32_t> {42u}, false).value() == 42);
 static_assert(OptionalConvert<int32_t>(std::optional<double> {1.5}, false).value() == 2);
