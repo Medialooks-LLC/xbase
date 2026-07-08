@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include <cstdint>
 #include <map>
 #include <string>
@@ -18,14 +20,16 @@ struct Parts {
     std::map<std::string, std::string> params;
 };
 
-bool IsProtocol(std::string_view _text, std::string* _protocol_p = nullptr, std::string* _name_p = nullptr);
+XBASE_API bool IsProtocol(std::string_view _text,
+                          std::string*     _protocol_p = nullptr,
+                          std::string*     _name_p     = nullptr);
 
-size_t IsAnyProtocol(std::string_view              _text,
-                     std::vector<std::string_view> _protocols,
-                     std::string*                  _name_p = nullptr);
+XBASE_API size_t IsAnyProtocol(std::string_view              _text,
+                               std::vector<std::string_view> _protocols,
+                               std::string*                  _name_p = nullptr);
 
-Parts Parse(const std::string& _url);
+XBASE_API Parts Parse(const std::string& _url);
 
-std::string Make(Parts _url);
+XBASE_API std::string Make(Parts _url);
 
 } // namespace xsdk::xbase::url

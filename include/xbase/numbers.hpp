@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 /**
  * @file numbers.hpp
  * @brief Numeric helpers for optional conversion, addition, clamping, and alignment.
@@ -109,29 +111,31 @@ namespace numbers {
         return RationalToBool(_rational) ? static_cast<double>(_rational.first) / _rational.second : _default;
     }
 
-    std::pair<int64_t, double> SplitDouble(double _value);
+    XBASE_API std::pair<int64_t, double> SplitDouble(double _value);
 
-    std::pair<Rational, int64_t> Reduce(int64_t _first, int64_t _second);
+    XBASE_API std::pair<Rational, int64_t> Reduce(int64_t _first, int64_t _second);
 
-    Rational DoubleToRational(double _value, std::vector<Rational>&& _extra_check = {}, double _precision = 0.004);
+    XBASE_API Rational DoubleToRational(double                  _value,
+                                        std::vector<Rational>&& _extra_check = {},
+                                        double                  _precision   = 0.004);
 
-    int32_t ModSubMin(uint32_t _first_by_mod, uint32_t _second_by_mod, uint32_t _modulo);
+    XBASE_API int32_t ModSubMin(uint32_t _first_by_mod, uint32_t _second_by_mod, uint32_t _modulo);
 
-    uint64_t ModIndex(uint64_t _last, uint64_t _value_by_mod, uint32_t _modulo);
+    XBASE_API uint64_t ModIndex(uint64_t _last, uint64_t _value_by_mod, uint32_t _modulo);
 
-    uint64_t ModDiv(int64_t _value, uint64_t _modulo);
+    XBASE_API uint64_t ModDiv(int64_t _value, uint64_t _modulo);
 
-    uint32_t ModOneAdd(uint32_t _value, int32_t _add, uint32_t _modulo);
+    XBASE_API uint32_t ModOneAdd(uint32_t _value, int32_t _add, uint32_t _modulo);
 
-    uint64_t NextUint64();
+    XBASE_API uint64_t NextUint64();
 
-    uint32_t HashUint32(uint32_t _value);
+    XBASE_API uint32_t HashUint32(uint32_t _value);
 
-    uint64_t HashUint64(uint64_t _value);
+    XBASE_API uint64_t HashUint64(uint64_t _value);
 
-    uint64_t HashData(size_t _size, const void* _data);
+    XBASE_API uint64_t HashData(size_t _size, const void* _data);
 
-    uint64_t HashString(std::string_view _text);
+    XBASE_API uint64_t HashString(std::string_view _text);
 
 } // namespace numbers
 

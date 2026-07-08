@@ -1,12 +1,14 @@
 #pragma once
 
+#include "xbase/symbols.h"
+#include "internal/xuid_type_name.hpp"
+
 #include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include "internal/xuid_type_name.hpp"
 
 namespace xsdk::xbase {
 
@@ -17,7 +19,7 @@ using Uid = std::uint64_t;
  *
  * This function generates and returns the next unique number.
  */
-uint64_t NextUid();
+XBASE_API uint64_t NextUid();
 
 // Invalud uid mark
 static constexpr uint64_t kInvalidUid = 0;
@@ -25,13 +27,13 @@ static constexpr uint64_t kInvalidUid = 0;
 static constexpr uint64_t kFirstUid = 1000;
 
 // Return same unique value for same _group_uid
-uint64_t MakeUid(uint64_t _group_uid);
+XBASE_API uint64_t MakeUid(uint64_t _group_uid);
 
 // Return same unique value for same _uid_first and _uid_second
-uint64_t MakeUid(const uint64_t _uid_first, const uint64_t _uid_second);
+XBASE_API uint64_t MakeUid(const uint64_t _uid_first, const uint64_t _uid_second);
 
 // Return same unique value for same string
-uint64_t MakeUid(const std::string& _string_base);
+XBASE_API uint64_t MakeUid(const std::string& _string_base);
 
 // From here:
 // https://stackoverflow.com/questions/48896142/is-it-possible-to-get-hash-values-as-compile-time-constants

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include <any>
 #include <atomic>
 #include <cassert>
@@ -160,23 +162,23 @@ namespace time64 {
         return std::chrono::duration_cast<std::chrono::nanoseconds>(_dur).count() / nsec_per_tick;
     }
 
-    time_t SysClockTime(int64_t* _second_fraction_rt_p = nullptr);
+    XBASE_API time_t SysClockTime(int64_t* _second_fraction_rt_p = nullptr);
 
-    int64_t UtcTime();
+    XBASE_API int64_t UtcTime();
 
-    std::tm LocalTime(const time_t& _time);
+    XBASE_API std::tm LocalTime(const time_t& _time);
 
-    std::tm GmTime(const time_t& _time);
+    XBASE_API std::tm GmTime(const time_t& _time);
 
-    std::tm SysClockTm(bool _utc_time, int64_t _offset_msec = 0, int64_t* _second_fraction_rt_p = nullptr);
+    XBASE_API std::tm SysClockTm(bool _utc_time, int64_t _offset_msec = 0, int64_t* _second_fraction_rt_p = nullptr);
 
-    std::string TimeNowString(bool _utc_time, bool _include_msec, int64_t _offset_msec = 0);
+    XBASE_API std::string TimeNowString(bool _utc_time, bool _include_msec, int64_t _offset_msec = 0);
 
-    std::tm StringToTime(const std::string& _time, uint8_t* _succeeded_p = nullptr);
+    XBASE_API std::tm StringToTime(const std::string& _time, uint8_t* _succeeded_p = nullptr);
 
-    std::time_t StringToTimeT(const std::string& _time, uint8_t* _succeeded_p = nullptr);
+    XBASE_API std::time_t StringToTimeT(const std::string& _time, uint8_t* _succeeded_p = nullptr);
 
-    time_t CompilerDateToTime(const char* _date);
+    XBASE_API time_t CompilerDateToTime(const char* _date);
 
     constexpr Time64 BlockStart(const int64_t _idx,
                                 const int64_t _block_len_num,

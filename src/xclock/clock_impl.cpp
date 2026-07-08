@@ -20,10 +20,10 @@ const xbase::ISyncGenerator::SPtrC& xclock::SyncGenStd(bool _monotonic_increase)
     static ISyncGenerator::SPtrC def  = std::make_shared<impl::SyncGeneratorStd<TSyncGenClock, time64::kSecond>>(false);
     return _monotonic_increase ? mono : def;
 }
-template const xbase::ISyncGenerator::SPtrC& xclock::SyncGenStd<std::chrono::steady_clock>(bool);
-template const xbase::ISyncGenerator::SPtrC& xclock::SyncGenStd<std::chrono::system_clock>(bool);
+template XBASE_API const xbase::ISyncGenerator::SPtrC& xclock::SyncGenStd<std::chrono::steady_clock>(bool);
+template XBASE_API const xbase::ISyncGenerator::SPtrC& xclock::SyncGenStd<std::chrono::system_clock>(bool);
 #ifdef _WIN32
-template const xbase::ISyncGenerator::SPtrC& xclock::SyncGenStd<std::chrono::high_resolution_clock>(bool);
+template XBASE_API const xbase::ISyncGenerator::SPtrC& xclock::SyncGenStd<std::chrono::high_resolution_clock>(bool);
 #endif
 
 xbase::IClock::UPtr xclock::Create(const ISyncGenerator::SPtrC& _sync_gen, std::optional<Time64>&& _start_time)

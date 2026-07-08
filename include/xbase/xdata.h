@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include "xpointers.hpp"
 #include "xuid.h" // For TypeUid
 
@@ -19,7 +21,7 @@ namespace xsdk {
  * This interface provides methods for data handling, such as data adding, data getting, data removing, and data
  * resetting.
  */
-class IData: public xbase::PtrBase<IData> {
+class XBASE_API IData: public xbase::PtrBase<IData> {
 public:
     virtual ~IData() = default;
 
@@ -102,13 +104,13 @@ namespace xdata {
      * @brief Creates an empty XData
      * @return std::unique_ptr to the newly created XData
      */
-    IData::UPtr Create(); // Implemetation in xdata_impl.cpp
+    XBASE_API IData::UPtr Create(); // Implemetation in xdata_impl.cpp
 
     /**
      * @brief Clone existing or creates an empty XData
      * @return std::unique_ptr to the newly cloned or created XData
      */
-    IData::UPtr CreateOrClone(const IData* _base); // Implemetation in xdata_impl.cpp
+    XBASE_API IData::UPtr CreateOrClone(const IData* _base); // Implemetation in xdata_impl.cpp
 
     /**
      * @brief Helper function for wrapping a data instance in an std::any.

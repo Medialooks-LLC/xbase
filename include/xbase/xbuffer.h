@@ -1,5 +1,6 @@
 #pragma once
 
+#include "xbase/symbols.h"
 #include "xobject.h"
 
 #include <memory>
@@ -13,7 +14,7 @@ namespace xbase {
     /**
      * @brief interface for represent srting or binary buffers
      */
-    class IBuffer: public IObject {
+    class XBASE_API IBuffer: public IObject {
     public:
         /**
          * @brief buffer type
@@ -58,11 +59,11 @@ namespace xbuffer {
     /**
      * @brief check for string buffer (kString or kStringView)
      */
-    bool IsString(const xbase::IBuffer* _data_buffer_p);
+    XBASE_API bool IsString(const xbase::IBuffer* _data_buffer_p);
     /**
      * @brief check for binary buffer (kBinary or kBinaryWritable)
      */
-    bool IsBinary(const xbase::IBuffer* _data_buffer_p);
+    XBASE_API bool IsBinary(const xbase::IBuffer* _data_buffer_p);
 
     inline constexpr std::string_view kNull   = "null";
     inline constexpr std::string_view kBinary = "bin";
@@ -70,24 +71,26 @@ namespace xbuffer {
     /**
      * @brief check for string buffer (kString or kStringView) and return buffer string, or kNull/kBinary if not string
      */
-    std::string ToString(const xbase::IBuffer* _data_buffer_p);
+    XBASE_API std::string ToString(const xbase::IBuffer* _data_buffer_p);
     /**
      * @brief create string buffer over std::string
      */
-    xbase::IBuffer::SPtr CreateStringBuffer(std::string&& _string, const std::optional<xbase::Uid> _object_uid = {});
+    XBASE_API xbase::IBuffer::SPtr CreateStringBuffer(std::string&&                      _string,
+                                                      const std::optional<xbase::Uid> _object_uid = {});
     /**
      * @brief create string buffer from std::string_view with holder
      */
-    xbase::IBuffer::SPtr CreateStringBuffer(std::any&&                      _holder,
-                                            const std::string_view&         _string,
-                                            const std::optional<xbase::Uid> _object_uid = {});
+    XBASE_API xbase::IBuffer::SPtr CreateStringBuffer(std::any&&                      _holder,
+                                                      const std::string_view&         _string,
+                                                      const std::optional<xbase::Uid> _object_uid = {});
     /**
      * @brief create data buffer - for writable buffer keep _holder empty
      */
-    xbase::IBuffer::SPtr CreateDataBuffer(const void*                               _data_p,
-                                          const size_t                              _size_in_bytes,
-                                          std::any&&                                _holder      = {},
-                                          const std::optional<xbase::IBuffer::Type> _buffer_type = {},
-                                          const std::optional<xbase::Uid>           _object_uid  = {});
+    XBASE_API xbase::IBuffer::SPtr CreateDataBuffer(
+        const void*                               _data_p,
+        const size_t                              _size_in_bytes,
+        std::any&&                                _holder      = {},
+        const std::optional<xbase::IBuffer::Type> _buffer_type = {},
+        const std::optional<xbase::Uid>           _object_uid  = {});
 } // namespace xbuffer
 } // namespace xsdk

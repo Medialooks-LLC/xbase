@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include "xpointers.hpp"
 #include "xtime.h"
 #include "xuid.h"
@@ -19,7 +21,7 @@ namespace xbase {
      * @brief ISyncGenerator - base class for xSDK clock objects.
      * Used for time syncronization between modules in pipelines.
      */
-    class ISyncGenerator {
+    class XBASE_API ISyncGenerator {
     public:
         virtual ~ISyncGenerator() = default;
 
@@ -48,7 +50,7 @@ namespace xbase {
      * @brief IClock - utility class over ISyncGenerator clock object.
      * Used for time syncronization between modules in pipelines.
      */
-    class IClock {
+    class XBASE_API IClock {
     public:
         virtual ~IClock() = default;
 
@@ -100,7 +102,7 @@ namespace xbase {
     /**
      * @brief Vary basic class for measure times intervals based on High-Resolution SyncGenerator.
      */
-    class ClockHR {
+    class XBASE_API ClockHR {
         Time64     start_;
         Time64     lap_start_;
         const bool monotonic_increase_;
@@ -118,11 +120,13 @@ namespace xbase {
          * @return The current time.
          */
         Time64 Time() const;
+
         /**
          * @brief Get current time in msec.
          * @return The current time in msec.
          */
         double TimeMsec() const { return time64::ToMsec(Time()); }
+
         /**
          * @brief Reset the clock to a new start time.
          * @param _start The new start time, set to zero if not needed.
@@ -140,11 +144,13 @@ namespace xbase {
          * @return The time elapsed.
          */
         Time64 Lap() const;
+
         /**
          * @brief Get the time elapsed since the last ResetLap call in msec.
          * @return The time elapsed in msec.
          */
         double LapMsec() const { return time64::ToMsec(Lap()); }
+
         /**
          * @brief Reset the clock and start measuring a new interval.
          * @param _min_lap The minimum lap time, set to zero if need to reset lap immediatly.
@@ -186,6 +192,7 @@ namespace xclock {
         return std::chrono::time_point_cast<std::chrono::nanoseconds>(TClock::now()).time_since_epoch().count() /
                nsec_per_tick;
     }
+
     /**
      * @brief helper for get clock time_point with msec from now
      */
@@ -194,6 +201,7 @@ namespace xclock {
     {
         return TClock::now() + std::chrono::microseconds((int64_t)std::ceil(_add_msec * 1000.0));
     }
+
     template <class TClock, class TDuration>
     double ElapcedMsec(const std::chrono::time_point<TClock, TDuration>& _abs_time)
     {
@@ -204,6 +212,7 @@ namespace xclock {
     /**
      * @brief Return ISyncGenerator based on std::chrono library
      * @tparam TSyncGenClock The std::chrono clock to use as sync generator
+     * @note Only the explicitly instantiated clocks exported by xbase are supported.
      */
     template <typename TSyncGenClock = std::chrono::steady_clock>
     const ISyncGenerator::SPtrC& SyncGenStd(bool _monotonic_increase);
@@ -215,12 +224,12 @@ namespace xclock {
      * @param _start_time Optional start time for the clock
      * @return A unique_ptr to the created clock
      */
-    IClock::UPtr Create(const ISyncGenerator::SPtrC& _sync_gen, std::optional<Time64>&& _start_time = {});
+    XBASE_API IClock::UPtr Create(const ISyncGenerator::SPtrC& _sync_gen, std::optional<Time64>&& _start_time = {});
 
     /**
      * @brief Create basic steady clock
      */
-    IClock::UPtr Create(const Time64 _start_from = 0, const bool _monotonic = false);
+    XBASE_API IClock::UPtr Create(const Time64 _start_from = 0, const bool _monotonic = false);
 
     /**
      * @brief Adjustment types for IClock clone function
@@ -239,9 +248,9 @@ namespace xclock {
      * @param _value: The optional value to use for the adjustment.
      * @return A new instance of IClock, representing the cloned clock with the optional adjustment.
      */
-    IClock::UPtr Clone(const IClock*           _base_p,
-                       const AdjustType        _adjuct_type = AdjustType::kClockOffset,
-                       std::optional<Time64>&& _value       = {});
+    XBASE_API IClock::UPtr Clone(const IClock*           _base_p,
+                                 const AdjustType        _adjuct_type = AdjustType::kClockOffset,
+                                 std::optional<Time64>&& _value       = {});
 
     // Clone provides clock or create new one based on specified sync gen
     /**
@@ -251,30 +260,30 @@ namespace xclock {
      * @param _start_time Optional start time for the new clock
      * @return A unique_ptr to the cloned or created clock
      */
-    IClock::UPtr CreateOrClone(const IClock*                _base_p,
-                               const ISyncGenerator::SPtrC& _sync_gen_for_new_clock,
-                               std::optional<Time64>&&      _start_time = {});
+    XBASE_API IClock::UPtr CreateOrClone(const IClock*                _base_p,
+                                         const ISyncGenerator::SPtrC& _sync_gen_for_new_clock,
+                                         std::optional<Time64>&&      _start_time = {});
 
     // Move to xbase ?
 
     /// @name Aliases for Timestamp<>
     /// @{
     /// @brief The current system time, in 100 nsec units since 1970 (windows filetime)
-    Time64 SysTime();
+    XBASE_API Time64 SysTime();
     /// @brief The current high-resolution time, in seconds
-    Time64 HighResTime();
+    XBASE_API Time64 HighResTime();
     /**
      * @brief The current UTC time, in 100 nsec units since 1601 (unix timestamp)
      * @param _utc_timezone Timezone offset from UTC, in hours
      * @return The current UTC time
      */
-    Time64 UtcTime();
+    XBASE_API Time64 UtcTime();
     /**
      * @brief The application statrt UTC time, in 100 nsec units since 1601 (unix timestamp)
      * @param _utc_timezone Timezone offset from UTC, in hours
      * @return The current UTC time
      */
-    Time64 ApplicationStartUtc();
+    XBASE_API Time64 ApplicationStartUtc();
     /// @}
 
     /// @name Aliases for SyncGenStd<>
@@ -284,19 +293,19 @@ namespace xclock {
      * @param _monotonic_increase Whether the sync generator provides monotonic time
      * @return The sync generator based on system clock
      */
-    const ISyncGenerator::SPtrC& SysSyncGen(bool _monotonic_increase);
+    XBASE_API const ISyncGenerator::SPtrC& SysSyncGen(bool _monotonic_increase);
     /**
      * @brief Get the sync generator based on high-resolution clock
      * @param _monotonic_increase Whether the sync generator provides monotonic time
      * @return The sync generator based on high-resolution clock
      */
-    const ISyncGenerator::SPtrC& HighResSyncGen(bool _monotonic_increase);
+    XBASE_API const ISyncGenerator::SPtrC& HighResSyncGen(bool _monotonic_increase);
     /**
      * @brief Get the sync generator based on steady clock
      * @param _monotonic_increase Whether the sync generator provides monotonic time
      * @return The sync generator based on steady clock
      */
-    const ISyncGenerator::SPtrC& SteadySyncGen(bool _monotonic_increase);
+    XBASE_API const ISyncGenerator::SPtrC& SteadySyncGen(bool _monotonic_increase);
     /// @}
 
     /// @name Static clocks
@@ -306,19 +315,19 @@ namespace xclock {
      * @param _monotonic_increase Whether the clock provides monotonic time
      * @return The system clock
      */
-    const IClock* SysClock(bool _monotonic_increase);
+    XBASE_API const IClock* SysClock(bool _monotonic_increase);
     /**
      * @brief Get the high-resolution clock
      * @param _monotonic_increase Whether the clock provides monotonic time
      * @return The high-resolution clock
      */
-    const IClock* HighResClock(bool _monotonic_increase);
+    XBASE_API const IClock* HighResClock(bool _monotonic_increase);
     /**
      * @brief Get the UTC clock
      * @param _monotonic_increase Whether the clock provides monotonic time
      * @return The UTC clock
      */
-    const IClock* UtcClock(bool _monotonic_increase);
+    XBASE_API const IClock* UtcClock(bool _monotonic_increase);
     /// @}
 
     /**
@@ -327,9 +336,9 @@ namespace xclock {
      *          No wait -> {0, 0}
      *          Wait ->    {The real wait time, the expected wait time, kNoVal if event signaled}
      */
-    std::pair<xbase::Time64, xbase::Time64> WaitClockTime(const xbase::IClock* _clock_p,
-                                                          const xbase::Time64  _wait_until,
-                                                          const xbase::Time64  _skip_wait_if_less = 0);
+    XBASE_API std::pair<xbase::Time64, xbase::Time64> WaitClockTime(const xbase::IClock* _clock_p,
+                                                                    const xbase::Time64  _wait_until,
+                                                                    const xbase::Time64  _skip_wait_if_less = 0);
 
     /**
      * @brief helper for wait condition_variable for specified clock time
@@ -337,28 +346,42 @@ namespace xclock {
      *          No wait -> {0, 0}
      *          Wait ->    {The real wait time, the expected wait time, kNoVal if event signaled}
      */
-    std::pair<xbase::Time64, xbase::Time64> EventWaitClockTime(std::condition_variable&      _cv_event,
-                                                               std::unique_lock<std::mutex>* _lck_p,
-                                                               const xbase::IClock*          _clock_p,
-                                                               const xbase::Time64           _wait_until,
-                                                               const xbase::Time64           _skip_wait_if_less = 0);
+    XBASE_API std::pair<xbase::Time64, xbase::Time64> EventWaitClockTime(std::condition_variable&      _cv_event,
+                                                                         std::unique_lock<std::mutex>* _lck_p,
+                                                                         const xbase::IClock*          _clock_p,
+                                                                         const xbase::Time64           _wait_until,
+                                                                         const xbase::Time64 _skip_wait_if_less = 0);
+
+#ifdef _MSC_VER
+    #pragma warning(push)
+    // Suppress C4251: private STL members don't need a DLL interface.
+    #pragma warning(disable : 4251)
+#endif
+
     /**
      * @brief helper class for decreaese wait time
      */
-    class Countdown {
+    class XBASE_API Countdown {
         std::atomic<xbase::Time64> end_time_ = {time64::kNoVal};
 
     public:
         Countdown(const Countdown& _copy) : end_time_(_copy.end_time_.load()) {}
+
         Countdown(Countdown&& _move) noexcept;
         Countdown(const std::optional<uint32_t> _wait_msec, const uint32_t _default_msec);
+
         Countdown(const double _wait_msec) { ResetToMsec(_wait_msec); }
 
     public:
         xbase::Time64 RemainingTime64() const { return end_time_.load() - xclock::HighResTime(); }
-        uint32_t      RemainingMsec() const;
-        void          ResetToMsec(const double _remining_msec);
+
+        uint32_t RemainingMsec() const;
+        void     ResetToMsec(const double _remining_msec);
     };
+
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 } // namespace xclock
 

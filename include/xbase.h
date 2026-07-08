@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include "xbase/atomic_wait.hpp"
 #include "xbase/averages.hpp"
 #include "xbase/base64.h"

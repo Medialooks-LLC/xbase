@@ -16,18 +16,23 @@ add_library(${PROJECT_NAME}
     SHARED
     ${FILES}
 )
+target_compile_definitions(${PROJECT_NAME} PRIVATE XBASE_BUILDING_DLL)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
 else()
 add_library(${PROJECT_NAME}
     STATIC
     ${FILES}
 )
+target_compile_definitions(${PROJECT_NAME} PUBLIC XBASE_STATIC_DEFINE)
 endif()
 if(WIN32)
     target_link_libraries(${PROJECT_NAME}
                           PUBLIC
                           IPHLPAPI
     )
-    set_target_properties(xbase PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif()
 
 if(UNIX AND NOT APPLE)

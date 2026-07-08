@@ -13,7 +13,7 @@
  * - XENUM64 / XENUM_CLASS64 / XENUM_NESTED64 declaration macros.
  * - XENUM_OPS / XENUM_NESTED_OPS bitmask operator macros.
  * - xsdk::xenum::ToString(), FromStringOne(), FromString(), HasFlag().
- * 
+ *
  * @note XENUM parser limitation:
  *       enumerator initializer expressions may contain commas only when they are
  *       protected by parentheses `()`, square brackets `[]`, braces `{}`, or quotes.
@@ -26,6 +26,7 @@
  */
 
 #include "xbase/strings.h"
+#include "xbase/symbols.h"
 #include "xbase/xuid.h"
 
 #include <cstdint>
@@ -208,6 +209,12 @@ namespace xsdk {
 
 namespace xenum_detail {
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    // Suppress C4251: private STL members don't need a DLL interface.
+    #pragma warning(disable : 4251)
+#endif
+
     /**
      * @brief Runtime reflection metadata for a single enum type.
      *
@@ -215,9 +222,9 @@ namespace xenum_detail {
      * functions. It stores enum value/name pairs parsed from the macro argument list
      * and provides lookup methods used by xsdk::xenum conversion helpers.
      *
-     * @note This class is intentionally not part of the public API.
+     * @note Exported for XENUM-generated code, but not intended for direct API use.
      */
-    class EnumReflection final {
+    class XBASE_API EnumReflection final {
     public:
         /**
          * @brief Builds reflection metadata from generated enum values and source text.
@@ -269,6 +276,10 @@ namespace xenum_detail {
         struct Impl;
         std::unique_ptr<Impl> impl_;
     };
+
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
     /**
      * @brief Returns reflection metadata for an enum type.
@@ -508,9 +519,9 @@ namespace xenum {
                 DetailVal(_underlying_type val) : val_(val) { detail_sval = val_ + 1; }                               \
                 DetailVal() : val_(detail_sval) { detail_sval = val_ + 1; }                                           \
                                                                                                                       \
-                DetailVal&       operator=(const DetailVal&) { return *this; }                                        \
-                DetailVal&       operator=(_underlying_type) { return *this; }                                        \
-                                 operator _underlying_type() const { return val_; }                                   \
+                DetailVal& operator=(const DetailVal&) { return *this; }                                              \
+                DetailVal& operator=(_underlying_type) { return *this; }                                              \
+                operator _underlying_type() const { return val_; }                                                    \
                 _underlying_type val_;                                                                                \
             } __VA_ARGS__;                                                                                            \
             const int64_t detail_vals[] = {__VA_ARGS__};                                                              \

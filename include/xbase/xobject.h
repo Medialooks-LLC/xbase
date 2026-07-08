@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include "xpointers.hpp"
 #include "xuid.h"
 
@@ -14,7 +16,7 @@ namespace xsdk {
  * The IObject interface defines a basic set of functions that are required for an object
  * to be managed by a smart pointer system.
  */
-class IObject: public xbase::PtrBase<IObject> {
+class XBASE_API IObject: public xbase::PtrBase<IObject> {
 
 public:
     virtual ~IObject() = default;
@@ -46,12 +48,12 @@ namespace xobject {
      * @brief Creates a new unique smart pointer for an IObject.
      * @return A new unique smart pointer for an IObject.
      */
-    IObject::UPtr CreateUnique();
+    XBASE_API IObject::UPtr CreateUnique();
     /**
      * @brief Creates a new shared smart pointer for an IObject.
      * @return A new shared smart pointer for an IObject.
      */
-    IObject::SPtr CreateShared();
+    XBASE_API IObject::SPtr CreateShared();
 
     /**
      * @brief Template function for querying a shared_ptr to an object of a given type from an IObject.

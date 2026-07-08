@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include <cassert>
 #include <functional>
 #include <future>
@@ -28,7 +30,7 @@ namespace xbase {
      * The IScheduler::Status enumeration defines the statuses that a task can have, including not found, scheduled,
      * and executing now.
      */
-    class IScheduler: public xbase::PtrBase<IScheduler> {
+    class XBASE_API IScheduler: public xbase::PtrBase<IScheduler> {
     public:
         /// @brief Contains information about a task.
         struct TaskInfo {
@@ -144,7 +146,7 @@ namespace xscheduler {
     using namespace xbase;
 
     /// @brief default scheduler (use default workers pool)
-    xbase::IScheduler* StaticScheduler();
+    XBASE_API xbase::IScheduler* StaticScheduler();
 
     /// @brief return _scheduler or static scheduler (never null)
     inline xbase::IScheduler* DefaultScheduler(xbase::IScheduler* const _scheduler_p = nullptr)
@@ -160,9 +162,9 @@ namespace xscheduler {
      * ignored, shiould be nullptr)
      * @return An IScheduler UPtr that owns the newly created scheduler instance.
      */
-    IScheduler::UPtr CreateScheduler(const xbase::IClock* _clock_p,
-                                     const bool           _use_static_workers_pool = true,
-                                     const IWorker::SPtr& _default_worker          = {});
+    XBASE_API IScheduler::UPtr CreateScheduler(const xbase::IClock* _clock_p,
+                                               const bool           _use_static_workers_pool = true,
+                                               const IWorker::SPtr& _default_worker          = {});
 
     /* *
      * @brief Calculates absolute scheduler time from relative delay in seconds.
@@ -185,7 +187,7 @@ namespace xscheduler {
      * @note Negative values are allowed and produce time points earlier than current scheduler time.
      *       Depending on scheduler implementation, such tasks may start immediately.
      */
-    xbase::Time64 ScheduledTime(xbase::IScheduler* _scheduler_p, const double _delay_sec);
+    XBASE_API xbase::Time64 ScheduledTime(xbase::IScheduler* _scheduler_p, const double _delay_sec);
 
     /* *
      * @brief Returns true if the specified scheduler task is still active.
@@ -197,7 +199,7 @@ namespace xscheduler {
      * @param _task_uid Task uid to check.
      * @return `true` if the task is scheduled or executing, otherwise `false`.
      */
-    bool IsActiveTask(xbase::IScheduler* _scheduler_p, const xbase::Uid _task_uid);
+    XBASE_API bool IsActiveTask(xbase::IScheduler* _scheduler_p, const xbase::Uid _task_uid);
 
     /* *
      * @brief Result status of TryScheduleTask().
@@ -238,9 +240,9 @@ namespace xscheduler {
      *       and only returns the current task scheduled time.
      * @note The returned value always represents the effective scheduled time known after the function call.
      */
-    std::optional<xbase::Time64> RescheduleTaskNoLaterThan(xbase::IScheduler*  _scheduler_p,
-                                                           const xbase::Uid    _task_uid,
-                                                           const xbase::Time64 _scheduled_time);
+    XBASE_API std::optional<xbase::Time64> RescheduleTaskNoLaterThan(xbase::IScheduler*  _scheduler_p,
+                                                                     const xbase::Uid    _task_uid,
+                                                                     const xbase::Time64 _scheduled_time);
 
     /* *
      * @brief Ensure that a logical task will run no later than the requested time by either rescheduling an existing
@@ -273,21 +275,22 @@ namespace xscheduler {
      *         - `kError` and `xbase::kInvalidUid` if scheduling failed
      *
      */
-    ScheduleTaskResult RunTaskNoLaterThan(std::atomic<xbase::Uid>&                      _atomic_task_uid,
-                                          xbase::IScheduler*                            _scheduler_p,
-                                          const xbase::Time64                           _scheduled_time,
-                                          xbase::IScheduler::TaskFunction&&             _task,
-                                          const std::optional<xbase::IWorker::TaskUid>& _new_task_uid = {},
-                                          const xbase::IWorker::SPtr&                   _task_worker = nullptr);
+    XBASE_API ScheduleTaskResult RunTaskNoLaterThan(
+        std::atomic<xbase::Uid>&                      _atomic_task_uid,
+        xbase::IScheduler*                            _scheduler_p,
+        const xbase::Time64                           _scheduled_time,
+        xbase::IScheduler::TaskFunction&&             _task,
+        const std::optional<xbase::IWorker::TaskUid>& _new_task_uid = {},
+        const xbase::IWorker::SPtr&                   _task_worker = nullptr);
 
     /* *
      * @brief Stops task stored in atomic uid and optionally waits for finish.
      *
      * @return Taken task uid, or `xbase::kInvalidUid` if there was no active task.
      */
-    xbase::Uid StopTask(std::atomic<xbase::Uid>& _atomic_task_uid,
-                        xbase::IScheduler*       _scheduler_p,
-                        const bool               _wait_for_finish);
+    XBASE_API xbase::Uid StopTask(std::atomic<xbase::Uid>& _atomic_task_uid,
+                                  xbase::IScheduler*       _scheduler_p,
+                                  const bool               _wait_for_finish);
 
     /**
      * @brief Schedules a new task with a given delay and function.

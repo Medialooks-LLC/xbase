@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -309,7 +311,7 @@ private:
  *   quoted value should end;
  * - if copy_input=false, returned views reference the input buffer.
  */
-ParamParseResult ParseParamString(const std::string_view _text, const ParamParseOptions _options = {});
+XBASE_API ParamParseResult ParseParamString(const std::string_view _text, const ParamParseOptions _options = {});
 
 /**
  * @brief Parses a null-terminated C string into items and flags.
@@ -322,6 +324,6 @@ ParamParseResult ParseParamString(const std::string_view _text, const ParamParse
  * If `_text == nullptr`, the function returns an empty result with one
  * kNullInput error at position 0.
  */
-ParamParseResult ParseParamString(const char* _text, const ParamParseOptions _options = {});
+XBASE_API ParamParseResult ParseParamString(const char* _text, const ParamParseOptions _options = {});
 
 } // namespace xsdk::xbase

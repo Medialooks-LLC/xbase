@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xbase/symbols.h"
+
 #include "xbase/numbers.hpp"
 #include "xbase/xblob.hpp"
 
@@ -138,7 +140,7 @@ size_t Write(const xbase::BlobTyped<TData> _dst, PFOnWrite<TData>&& _on_write_pf
     return static_cast<size_t>(std::max<int64_t>(0, pos));
 }
 
-size_t WriteBytes(xbase::XBlob _dst, PFOnWrite<uint8_t>&& _on_write_pf, size_t _offset);
+XBASE_API size_t WriteBytes(xbase::XBlob _dst, PFOnWrite<uint8_t>&& _on_write_pf, size_t _offset);
 
 template <typename TData>
 size_t Read(const xbase::BlobTypedC<TData>                                   _src,
@@ -158,9 +160,9 @@ size_t Read(const xbase::BlobTypedC<TData>                                   _sr
     return static_cast<size_t>(std::max<int64_t>(0, pos));
 }
 
-size_t ReadBytes(xbase::XBlobC _src,
-                 std::function<int64_t(const xbase::XBlobC&, size_t)>&& _on_read_pf,
-                 size_t _offset);
+XBASE_API size_t ReadBytes(xbase::XBlobC                                             _src,
+                           std::function<int64_t(const xbase::XBlobC&, size_t)>&& _on_read_pf,
+                           size_t                                                  _offset);
 
 template <typename TData>
 xbase::BufferTyped<TData> MakeBuffer(const xbase::BlobTyped<TData> _src, std::any&& _holder = {})
